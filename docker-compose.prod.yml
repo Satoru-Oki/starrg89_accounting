@@ -47,7 +47,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
       args:
-        VITE_API_URL: https://${DOMAIN}/api/v1
+        VITE_API_URL: ${VITE_API_URL}
     image: accounting-app-frontend:production
     expose:
       - "80"
