@@ -7,7 +7,23 @@
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins "localhost:5173", "127.0.0.1:5173"
+    # 環境に応じてオリジンを設定
+    allowed_origins = if Rails.env.production?
+      # 本番環境: ドメイン名とIPアドレスを許可
+      domain = ENV.fetch('ALLOWED_HOSTS', 'starrg89.xyz')
+      [
+        "http://#{domain}",
+        "https://#{domain}",
+        "http://www.#{domain}",
+        "https://www.#{domain}",
+        "http://162.43.39.146"
+      ]
+    else
+      # 開発環境: localhost を許可
+      ["localhost:5173", "127.0.0.1:5173"]
+    end
+
+    origins allowed_origins
 
     resource "*",
       headers: :any,
