@@ -1,0 +1,38 @@
+# 環境変数ファイル
+.env
+.env.production
+.env.local
+.env.development
+
+# Docker volumes
+postgres_data/
+rails_cache/
+frontend_static/
+
+# SSL証明書
+certbot/
+
+# ログ
+*.log
+logs/
+
+# バックアップ
+*.sql
+backup_*.sql
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node modules
+node_modules/
+
+# Build outputs
+dist/
+build/
