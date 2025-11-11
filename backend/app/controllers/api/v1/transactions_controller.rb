@@ -56,11 +56,11 @@ module Api
       
       def transaction_params
         # 許可するパラメータを明示的に指定
-        permitted = params.permit(:date, :deposit_from_star, :payment, :category, :description, :receipt_status)
-        
+        permitted = params.permit(:date, :deposit_from_star, :payment, :category, :description, :receipt_status, :payee)
+
         Rails.logger.info "Received params: #{params.inspect}"
         Rails.logger.info "Permitted params: #{permitted.inspect}"
-        
+
         permitted
       end
       
@@ -73,6 +73,7 @@ module Api
           category: transaction.category,
           description: transaction.description,
           receipt_status: transaction.receipt_status,
+          payee: transaction.payee,
           balance: transaction.balance&.to_f,
           user_id: transaction.user_id,
           user_name: transaction.user.name,

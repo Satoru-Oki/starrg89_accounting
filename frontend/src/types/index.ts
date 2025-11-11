@@ -13,6 +13,7 @@ export interface Transaction {
   category: string;
   description: string;
   receipt_status?: string;
+  payee?: string;
   balance?: number;
   user_id?: number;
   user_name?: string;
@@ -31,4 +32,5 @@ export interface AuthContextType {
   login: (userId: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  loading: boolean;
 }

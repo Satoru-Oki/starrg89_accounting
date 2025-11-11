@@ -18,6 +18,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check if user is already logged in (token exists)
@@ -30,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(JSON.parse(mockUser));
           setIsAuthenticated(true);
         }
+        setLoading(false);
       } else {
         // Validate token and get user info
         api.get('/auth/validate')
@@ -39,8 +41,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           })
           .catch(() => {
             localStorage.removeItem('token');
+          })
+          .finally(() => {
+            setLoading(false);
           });
       }
+    } else {
+      setLoading(false);
     }
   }, []);
 
@@ -80,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated }}>
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, loading }}>
       {children}
     </AuthContext.Provider>
   );

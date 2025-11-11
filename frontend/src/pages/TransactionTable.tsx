@@ -170,6 +170,7 @@ const TransactionTable = () => {
       date: today, // Dateオブジェクトとして設定
       deposit_from_star: null,
       payment: null,
+      payee: '',
       category: '',
       description: '',
       receipt_status: '未添付',
@@ -252,6 +253,7 @@ const TransactionTable = () => {
         category: newRow.category || '',
         description: newRow.description || '',
         receipt_status: newRow.receipt_status || '未添付',
+        payee: newRow.payee || '',
       };
 
       // 入金額の検証
@@ -447,6 +449,13 @@ const TransactionTable = () => {
       type: 'number',
     },
     {
+      field: 'payee',
+      headerName: '支払先',
+      width: isMobile ? 120 : 200,
+      minWidth: 100,
+      editable: true,
+    },
+    {
       field: 'category',
       headerName: '費目',
       width: isMobile ? 100 : 150,
@@ -459,7 +468,7 @@ const TransactionTable = () => {
     {
       field: 'description',
       headerName: '摘要',
-      width: isMobile ? 150 : 300,
+      width: isMobile ? 150 : 250,
       minWidth: 120,
       flex: isMobile ? 0 : 1,
       editable: true,
@@ -652,7 +661,33 @@ const TransactionTable = () => {
                 {isMobile ? '確認' : '更新確認'}
               </Button>
             )}
+            {!isMobile && (
+              <Typography
+                variant="body2"
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: 'black',
+                  fontSize: '0.85rem',
+                  ml: 'auto',
+                }}
+              >
+                ※ 領収書は登録番号（Tからはじまる13桁）の記載があるものを添付してください
+              </Typography>
+            )}
           </Box>
+          {isMobile && (
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'black',
+                fontSize: '0.8rem',
+                mt: 1,
+              }}
+            >
+              ※ 領収書は登録番号（Tからはじまる13桁）の記載があるものを添付してください
+            </Typography>
+          )}
         </Box>
 
         <Box sx={{

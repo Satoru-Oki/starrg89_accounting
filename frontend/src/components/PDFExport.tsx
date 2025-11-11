@@ -40,25 +40,28 @@ const styles = StyleSheet.create({
     borderRightColor: '#000',
   },
   tableColDate: {
-    width: '12%',
+    width: '10%',
   },
   tableColDeposit: {
-    width: '13%',
+    width: '11%',
   },
   tableColPayment: {
-    width: '13%',
+    width: '11%',
   },
-  tableColCategory: {
-    width: '15%',
-  },
-  tableColDescription: {
-    width: '30%',
-  },
-  tableColReceipt: {
+  tableColPayee: {
     width: '12%',
   },
+  tableColCategory: {
+    width: '12%',
+  },
+  tableColDescription: {
+    width: '25%',
+  },
+  tableColReceipt: {
+    width: '10%',
+  },
   tableColBalance: {
-    width: '13%',
+    width: '11%',
   },
   footer: {
     marginTop: 20,
@@ -104,6 +107,9 @@ const TransactionPDFDocument = ({ transactions, userName, monthPeriod }: PDFDocu
           <View style={[styles.tableCol, styles.tableColPayment]}>
             <Text>支払い</Text>
           </View>
+          <View style={[styles.tableCol, styles.tableColPayee]}>
+            <Text>支払先</Text>
+          </View>
           <View style={[styles.tableCol, styles.tableColCategory]}>
             <Text>費目</Text>
           </View>
@@ -129,6 +135,9 @@ const TransactionPDFDocument = ({ transactions, userName, monthPeriod }: PDFDocu
             </View>
             <View style={[styles.tableCol, styles.tableColPayment]}>
               <Text>{transaction.payment ? `¥${transaction.payment.toLocaleString()}` : ''}</Text>
+            </View>
+            <View style={[styles.tableCol, styles.tableColPayee]}>
+              <Text>{transaction.payee || ''}</Text>
             </View>
             <View style={[styles.tableCol, styles.tableColCategory]}>
               <Text>{transaction.category}</Text>
