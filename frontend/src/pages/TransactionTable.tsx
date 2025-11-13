@@ -27,6 +27,14 @@ import { Transaction } from '../types';
 import api from '../services/api';
 import { PDFExportButton } from '../components/PDFExport';
 
+// ローカル時刻でYYYY-MM-DD形式の文字列に変換するヘルパー関数
+const formatDateToLocalString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const TransactionTable = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -40,7 +48,7 @@ const TransactionTable = () => {
   const [initialLoadDate] = useState<string>(() => {
     // ページ読み込み日付（YYYY-MM-DD形式）
     const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
+    const dateStr = formatDateToLocalString(now);
     console.log('Initial load date:', dateStr);
     return dateStr;
   });
@@ -216,7 +224,7 @@ const TransactionTable = () => {
         if (isNaN(newRow.date.getTime())) {
           throw new Error('無効な日付です');
         }
-        dateValue = newRow.date.toISOString().split('T')[0];
+        dateValue = formatDateToLocalString(newRow.date);
       } else if (typeof newRow.date === 'string') {
         // 文字列の場合
         if (newRow.date.includes('T')) {
@@ -229,14 +237,14 @@ const TransactionTable = () => {
           // その他の形式を試す
           const parsedDate = new Date(newRow.date);
           if (!isNaN(parsedDate.getTime())) {
-            dateValue = parsedDate.toISOString().split('T')[0];
+            dateValue = formatDateToLocalString(parsedDate);
           }
         }
       } else if (typeof newRow.date === 'number') {
         // タイムスタンプの場合
         const parsedDate = new Date(newRow.date);
         if (!isNaN(parsedDate.getTime())) {
-          dateValue = parsedDate.toISOString().split('T')[0];
+          dateValue = formatDateToLocalString(parsedDate);
         }
       }
 
@@ -374,7 +382,7 @@ const TransactionTable = () => {
 
   const handleConfirmUpdates = () => {
     const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
+    const dateStr = formatDateToLocalString(now);
     setLastConfirmedDate(dateStr);
     localStorage.setItem('lastConfirmedDate', dateStr);
     console.log('Updates confirmed on:', dateStr);
