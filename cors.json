@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["http://starrg89.xyz", "http://www.starrg89.xyz", "https://starrg89.xyz", "https://www.starrg89.xyz"],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type", "Content-Disposition"],
+    "maxAgeSeconds": 3600
+  }
+]

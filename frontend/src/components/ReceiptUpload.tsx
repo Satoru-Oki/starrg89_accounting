@@ -10,6 +10,7 @@ import {
   DialogActions,
   Button,
   Alert,
+  TextField,
 } from '@mui/material';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import ImageIcon from '@mui/icons-material/Image';
@@ -46,6 +47,7 @@ export const ReceiptUpload = ({
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingOcrData, setPendingOcrData] = useState<OcrData | null>(null);
+  const [editableOcrData, setEditableOcrData] = useState<OcrData>({});
   const [previewImageUrl, setPreviewImageUrl] = useState<string>('');
   const [isPdfPreview, setIsPdfPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -132,6 +134,7 @@ export const ReceiptUpload = ({
       // 確認ダイアログ用にデータを保存（圧縮後のファイルを使用）
       setPendingFile(fileToUpload);
       setPendingOcrData(ocrData);
+      setEditableOcrData(ocrData); // 編集可能データも初期化
       setConfirmDialogOpen(true);
 
       // 入力フィールドをリセット
@@ -147,9 +150,9 @@ export const ReceiptUpload = ({
   };
 
   const handleConfirmOcr = () => {
-    if (pendingFile && pendingOcrData !== null) {
-      // 親コンポーネントにファイルとOCRデータを渡す（OCRデータが空でもOK）
-      onReceiptUpload(pendingFile, pendingOcrData);
+    if (pendingFile) {
+      // 親コンポーネントにファイルと編集されたOCRデータを渡す
+      onReceiptUpload(pendingFile, editableOcrData);
     }
     handleCancelOcr();
   };
@@ -267,17 +270,29 @@ export const ReceiptUpload = ({
               {previewImageUrl && (
                 <>
                   {isPdfPreview ? (
-                    // PDFの場合
-                    <Box
-                      component="iframe"
-                      src={previewImageUrl}
-                      sx={{
-                        width: '100%',
-                        height: '500px',
-                        border: '1px solid #ddd',
-                        borderRadius: 1,
-                      }}
-                    />
+                    // PDFの場合は新しいタブで開くリンクを表示
+                    <Box sx={{
+                      textAlign: 'center',
+                      py: 4,
+                      border: '1px solid #ddd',
+                      borderRadius: 1,
+                      minHeight: '200px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center'
+                    }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        PDFファイル
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        onClick={() => window.open(previewImageUrl, '_blank')}
+                        sx={{ mt: 2, mx: 'auto' }}
+                      >
+                        PDFをプレビュー
+                      </Button>
+                    </Box>
                   ) : (
                     // 画像の場合
                     <Box
@@ -298,43 +313,52 @@ export const ReceiptUpload = ({
               )}
             </Box>
 
-            {/* OCRデータ */}
+            {/* OCRデータ（編集可能） */}
             <Box sx={{ flex: 1 }}>
               <Typography variant="subtitle2" gutterBottom>
-                OCRで読み取ったデータ
+                OCRで読み取ったデータ（編集可能）
               </Typography>
               <Box sx={{ p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    日付
-                  </Typography>
-                  <Typography variant="body1">
-                    {pendingOcrData?.date ? new Date(pendingOcrData.date).toLocaleDateString('ja-JP') : '読み取れませんでした'}
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    金額
-                  </Typography>
-                  <Typography variant="body1">
-                    {pendingOcrData?.amount ? `¥${pendingOcrData.amount.toLocaleString()}` : '読み取れませんでした'}
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    支払先
-                  </Typography>
-                  <Typography variant="body1">
-                    {pendingOcrData?.payee || '読み取れませんでした'}
-                  </Typography>
-                </Box>
+                <TextField
+                  fullWidth
+                  label="日付"
+                  type="date"
+                  value={editableOcrData?.date || ''}
+                  onChange={(e) => setEditableOcrData({ ...editableOcrData, date: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ mb: 2 }}
+                  size="small"
+                  helperText={!pendingOcrData?.date ? '読み取れませんでした' : ''}
+                />
+                <TextField
+                  fullWidth
+                  label="金額"
+                  type="number"
+                  value={editableOcrData?.amount || ''}
+                  onChange={(e) => setEditableOcrData({ ...editableOcrData, amount: Number(e.target.value) })}
+                  sx={{ mb: 2 }}
+                  size="small"
+                  helperText={!pendingOcrData?.amount ? '読み取れませんでした' : ''}
+                  InputProps={{
+                    startAdornment: <Typography sx={{ mr: 1 }}>¥</Typography>,
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="支払先"
+                  value={editableOcrData?.payee || ''}
+                  onChange={(e) => setEditableOcrData({ ...editableOcrData, payee: e.target.value })}
+                  sx={{ mb: 2 }}
+                  size="small"
+                  helperText={!pendingOcrData?.payee ? '読み取れませんでした' : ''}
+                />
                 {pendingOcrData?.date || pendingOcrData?.amount || pendingOcrData?.payee ? (
                   <Alert severity="info" sx={{ mt: 2 }}>
-                    読み取れなかった項目や間違っている項目は、後で手動で修正できます。
+                    読み取れなかった項目や間違っている項目を修正できます。
                   </Alert>
                 ) : (
                   <Alert severity="warning" sx={{ mt: 2 }}>
-                    OCR処理に失敗しました。画像は保存できますので、データは後で手動で入力してください。
+                    OCR処理に失敗しました。手動でデータを入力してください。
                   </Alert>
                 )}
               </Box>
@@ -363,16 +387,20 @@ export const ReceiptUpload = ({
           {receiptUrl && (
             <>
               {isPdf ? (
-                // PDFの場合
-                <Box
-                  component="iframe"
-                  src={receiptUrl}
-                  sx={{
-                    width: '100%',
-                    height: '70vh',
-                    border: 'none',
-                  }}
-                />
+                // PDFの場合は新しいタブで開くリンクを表示
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="body1" gutterBottom>
+                    PDFファイルを別タブで開きます
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => window.open(receiptUrl, '_blank')}
+                    sx={{ mt: 2 }}
+                  >
+                    PDFを開く
+                  </Button>
+                </Box>
               ) : (
                 // 画像の場合
                 <Box

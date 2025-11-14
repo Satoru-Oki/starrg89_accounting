@@ -186,8 +186,9 @@ module Api
                 compressed_file.unlink
               end
             else
-              # 画像の場合は圧縮してJPEGで保存
-              compressed_file = compress_image(uploaded_file)
+              # 画像の場合は自動トリミング→圧縮してJPEGで保存
+              trimmed_file = trim_receipt_image(uploaded_file)
+              compressed_file = compress_image_from_tempfile(trimmed_file)
 
               # 日付ベースのキーを生成（拡張子は.jpgに固定）
               date_path = generate_date_based_key(transaction.date, 'receipt.jpg', transaction.user_id)
@@ -205,6 +206,51 @@ module Api
               compressed_file.unlink
             end
           end
+      end
+
+      # レシート画像を自動トリミング
+      def trim_receipt_image(uploaded_file)
+        trimming_service = ReceiptTrimmingService.new
+        trimming_service.trim_receipt(uploaded_file)
+      end
+
+      # Tempfileから画像をJPEG形式に圧縮
+      def compress_image_from_tempfile(tempfile)
+        require 'image_processing/vips'
+
+        # 一時ファイルを作成
+        compressed_tempfile = Tempfile.new(['compressed_receipt', '.jpg'])
+
+        begin
+          # Vipsで画像を処理
+          processed = ImageProcessing::Vips
+            .source(tempfile.path)
+            .resize_to_limit(1200, 1200)
+            .convert('jpg')
+            .saver(quality: 85)
+            .call
+
+          # 処理済み画像を一時ファイルにコピー
+          FileUtils.cp(processed.path, compressed_tempfile.path)
+          processed.close
+          processed.unlink
+
+          # 元のトリミング済みファイルをクリーンアップ
+          if tempfile.respond_to?(:close) && tempfile.respond_to?(:unlink)
+            tempfile.close
+            tempfile.unlink
+          end
+
+          compressed_tempfile.rewind
+          compressed_tempfile
+        rescue StandardError => e
+          Rails.logger.error "画像圧縮エラー: #{e.message}"
+          Rails.logger.error e.backtrace.join("\n")
+          compressed_tempfile.close
+          compressed_tempfile.unlink
+          # エラー時は元のファイルを返す
+          tempfile
+        end
       end
 
       # 画像をJPEG形式に圧縮
