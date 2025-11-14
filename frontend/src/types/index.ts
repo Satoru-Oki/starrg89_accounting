@@ -17,6 +17,8 @@ export interface Transaction {
   balance?: number;
   user_id?: number;
   user_name?: string;
+  receipt_url?: string | null;
+  is_pdf?: boolean;
   updated_at?: string;
   created_at?: string;
 }

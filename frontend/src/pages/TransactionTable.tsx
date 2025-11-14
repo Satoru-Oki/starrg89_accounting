@@ -650,6 +650,7 @@ const TransactionTable = () => {
       renderCell: (params) => (
         <ReceiptUpload
           receiptUrl={params.row.receipt_url}
+          isPdf={params.row.is_pdf}
           onReceiptUpload={handleReceiptUpload(params.id)}
           onReceiptDelete={handleReceiptDelete(params.id)}
           disabled={false}

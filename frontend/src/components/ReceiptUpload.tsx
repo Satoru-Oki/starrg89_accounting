@@ -19,6 +19,7 @@ import api from '../services/api';
 
 interface ReceiptUploadProps {
   receiptUrl?: string | null;
+  isPdf?: boolean;
   onReceiptUpload: (file: File, ocrData: OcrData) => void;
   onReceiptDelete?: () => void;
   disabled?: boolean;
@@ -33,6 +34,7 @@ interface OcrData {
 
 export const ReceiptUpload = ({
   receiptUrl,
+  isPdf = false,
   onReceiptUpload,
   onReceiptDelete,
   disabled = false
@@ -322,7 +324,7 @@ export const ReceiptUpload = ({
         <DialogContent>
           {receiptUrl && (
             <>
-              {receiptUrl.toLowerCase().endsWith('.pdf') ? (
+              {isPdf ? (
                 // PDFの場合
                 <Box
                   component="iframe"

@@ -274,6 +274,7 @@ module Api
       
       def transaction_json(transaction)
         receipt_url = transaction.receipt.attached? ? transaction.receipt.url : nil
+        is_pdf = transaction.receipt.attached? && transaction.receipt.content_type == 'application/pdf'
 
         {
           id: transaction.id,
@@ -289,6 +290,7 @@ module Api
           user_name: transaction.user.name,
           user_login_id: transaction.user.user_id,
           receipt_url: receipt_url,
+          is_pdf: is_pdf,
           updated_at: transaction.updated_at&.iso8601,
           created_at: transaction.created_at&.iso8601
         }
