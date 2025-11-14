@@ -363,6 +363,5 @@ module Api
           created_at: transaction.created_at&.iso8601
         }
       end
-    end
   end
 end
