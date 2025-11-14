@@ -117,7 +117,7 @@ module Api
             date: transaction.date.iso8601,
             amount: transaction.payment&.to_f,
             payee: transaction.payee,
-            receipt_url: url_for(transaction.receipt),
+            receipt_url: transaction.receipt.url,
             is_pdf: transaction.receipt.content_type == 'application/pdf'
           }
         end
@@ -273,7 +273,7 @@ module Api
       end
       
       def transaction_json(transaction)
-        receipt_url = transaction.receipt.attached? ? url_for(transaction.receipt) : nil
+        receipt_url = transaction.receipt.attached? ? transaction.receipt.url : nil
 
         {
           id: transaction.id,

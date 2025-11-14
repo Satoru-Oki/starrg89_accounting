@@ -32,6 +32,12 @@ Rails.application.configure do
   # Store uploaded files on Google Cloud Storage (see config/storage.yml for options).
   config.active_storage.service = :google
 
+  # デフォルトURLオプション（本番環境のドメインを設定）
+  config.action_controller.default_url_options = {
+    host: ENV.fetch('DOMAIN', 'starrg89.xyz'),
+    protocol: 'http'
+  }
+
   # Mount Action Cable outside main process or domain.
   # config.action_cable.mount_path = nil
   # config.action_cable.url = "wss://example.com/cable"
