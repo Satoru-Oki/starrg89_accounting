@@ -668,8 +668,8 @@ const TransactionTable = () => {
     ...((user?.role === 'admin' || user?.role === 'superadmin') ? [{
       field: 'updated_at',
       headerName: '更新日',
-      width: isMobile ? 100 : 120,
-      minWidth: 100,
+      width: isMobile ? 50 : 60,
+      minWidth: 50,
       editable: false,
       valueGetter: (value: any, row: any) => {
         // 新規追加行は更新日を表示しない
