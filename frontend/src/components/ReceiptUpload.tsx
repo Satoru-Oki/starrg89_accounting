@@ -96,22 +96,30 @@ export const ReceiptUpload = ({
         }
       }
 
-      // OCR処理を実行
-      const formData = new FormData();
-      formData.append('receipt', fileToUpload);
+      // OCR処理を実行（失敗しても画像は保存できる）
+      let ocrData: OcrData = {};
 
-      const response = await api.post('/transactions/extract_receipt_data', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      try {
+        const formData = new FormData();
+        formData.append('receipt', fileToUpload);
 
-      const ocrData: OcrData = {
-        date: response.data.date,
-        amount: response.data.amount,
-        payee: response.data.payee,
-        raw_text: response.data.raw_text,
-      };
+        const response = await api.post('/transactions/extract_receipt_data', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        ocrData = {
+          date: response.data.date,
+          amount: response.data.amount,
+          payee: response.data.payee,
+          raw_text: response.data.raw_text,
+        };
+      } catch (ocrError: any) {
+        console.warn('OCR処理に失敗しましたが、画像は保存できます:', ocrError);
+        // OCRが失敗しても空のデータで続行（手動入力可能）
+        ocrData = {};
+      }
 
       // ファイルのプレビューURLを作成（圧縮後のファイルを使用）
       const fileUrl = URL.createObjectURL(fileToUpload);
@@ -131,16 +139,16 @@ export const ReceiptUpload = ({
         fileInputRef.current.value = '';
       }
     } catch (err: any) {
-      console.error('OCR処理エラー:', err);
-      setError(err.response?.data?.error || 'OCR処理に失敗しました');
+      console.error('ファイル処理エラー:', err);
+      setError(err.message || 'ファイル処理に失敗しました');
     } finally {
       setLoading(false);
     }
   };
 
   const handleConfirmOcr = () => {
-    if (pendingFile && pendingOcrData) {
-      // 親コンポーネントにファイルとOCRデータを渡す
+    if (pendingFile && pendingOcrData !== null) {
+      // 親コンポーネントにファイルとOCRデータを渡す（OCRデータが空でもOK）
       onReceiptUpload(pendingFile, pendingOcrData);
     }
     handleCancelOcr();
@@ -320,9 +328,15 @@ export const ReceiptUpload = ({
                     {pendingOcrData?.payee || '読み取れませんでした'}
                   </Typography>
                 </Box>
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  読み取れなかった項目や間違っている項目は、後で手動で修正できます。
-                </Alert>
+                {pendingOcrData?.date || pendingOcrData?.amount || pendingOcrData?.payee ? (
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    読み取れなかった項目や間違っている項目は、後で手動で修正できます。
+                  </Alert>
+                ) : (
+                  <Alert severity="warning" sx={{ mt: 2 }}>
+                    OCR処理に失敗しました。画像は保存できますので、データは後で手動で入力してください。
+                  </Alert>
+                )}
               </Box>
             </Box>
           </Box>
