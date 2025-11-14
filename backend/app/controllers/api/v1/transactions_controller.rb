@@ -286,61 +286,137 @@ module Api
         end
       end
 
-      # PDFを圧縮
+      # PDFを圧縮（段階的に圧縮レベルを上げて500KB以下を目指す）
       def compress_pdf(uploaded_file)
         # 元のファイルサイズを確認
         original_size = File.size(uploaded_file.tempfile.path)
+        original_kb = (original_size / 1024.0).round(2)
 
         # 500KB以下なら圧縮しない
         if original_size <= 500 * 1024
-          Rails.logger.info "PDFサイズが500KB以下のため、圧縮をスキップします: #{(original_size / 1024.0).round(2)}KB"
+          Rails.logger.info "PDFサイズが500KB以下のため、圧縮をスキップします: #{original_kb}KB"
           return uploaded_file.tempfile
         end
 
-        # 一時ファイルを作成
+        Rails.logger.info "PDF圧縮開始: 元のサイズ #{original_kb}KB"
+
+        # 段階1: /ebook設定で圧縮（150dpi）
+        result_file = compress_pdf_with_settings(uploaded_file.tempfile.path, '/ebook', '150dpi標準品質')
+        result_size = File.size(result_file.path)
+        result_kb = (result_size / 1024.0).round(2)
+
+        if result_size <= 500 * 1024
+          Rails.logger.info "段階1(/ebook)で目標達成: #{result_kb}KB"
+          return result_file
+        end
+
+        # 段階2: /screen設定で圧縮（72dpi）
+        Rails.logger.info "段階1で#{result_kb}KB、段階2(/screen)を実行"
+        result_file.close
+        result_file.unlink
+
+        result_file = compress_pdf_with_settings(uploaded_file.tempfile.path, '/screen', '72dpi標準品質')
+        result_size = File.size(result_file.path)
+        result_kb = (result_size / 1024.0).round(2)
+
+        if result_size <= 500 * 1024
+          Rails.logger.info "段階2(/screen)で目標達成: #{result_kb}KB"
+          return result_file
+        end
+
+        # 段階3: カスタム設定で強力に圧縮（96dpi + JPEG品質60）
+        Rails.logger.info "段階2で#{result_kb}KB、段階3(カスタム低品質)を実行"
+        result_file.close
+        result_file.unlink
+
+        result_file = compress_pdf_custom_aggressive(uploaded_file.tempfile.path)
+        result_size = File.size(result_file.path)
+        result_kb = (result_size / 1024.0).round(2)
+
+        if result_size <= 500 * 1024
+          Rails.logger.info "段階3(カスタム)で目標達成: #{result_kb}KB"
+        else
+          Rails.logger.warn "段階3でも#{result_kb}KB、これ以上の圧縮は困難です"
+        end
+
+        result_file
+      rescue StandardError => e
+        Rails.logger.error "PDF圧縮エラー: #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
+        uploaded_file.tempfile
+      end
+
+      # 指定されたプリセット設定でPDFを圧縮
+      def compress_pdf_with_settings(input_path, preset, description)
         tempfile = Tempfile.new(['compressed_receipt', '.pdf'])
 
-        begin
-          # Ghostscriptでpdfを圧縮
-          # /ebook設定: 150dpi、レシートOCRに十分な画質
-          result = system(
-            'gs',
-            '-sDEVICE=pdfwrite',
-            '-dCompatibilityLevel=1.4',
-            '-dPDFSETTINGS=/ebook',
-            '-dNOPAUSE',
-            '-dQUIET',
-            '-dBATCH',
-            "-sOutputFile=#{tempfile.path}",
-            uploaded_file.tempfile.path
-          )
+        result = system(
+          'gs',
+          '-sDEVICE=pdfwrite',
+          '-dCompatibilityLevel=1.4',
+          "-dPDFSETTINGS=#{preset}",
+          '-dNOPAUSE',
+          '-dQUIET',
+          '-dBATCH',
+          "-sOutputFile=#{tempfile.path}",
+          input_path
+        )
 
-          if result
-            compressed_size = File.size(tempfile.path)
-            Rails.logger.info "PDF圧縮成功: #{(original_size / 1024.0).round(2)}KB → #{(compressed_size / 1024.0).round(2)}KB"
-
-            # 圧縮後のサイズが元より大きい場合は元のファイルを使用
-            if compressed_size >= original_size
-              Rails.logger.info "圧縮後のサイズが大きいため、元のファイルを使用します"
-              tempfile.close
-              tempfile.unlink
-              return uploaded_file.tempfile
-            end
-
-            tempfile.rewind
-            tempfile
-          else
-            Rails.logger.error "PDF圧縮コマンドが失敗しました"
-            tempfile.close
-            tempfile.unlink
-            uploaded_file.tempfile
-          end
-        rescue StandardError => e
-          Rails.logger.error "PDF圧縮エラー: #{e.message}"
-          Rails.logger.error e.backtrace.join("\n")
+        if result
+          tempfile.rewind
+          tempfile
+        else
+          Rails.logger.error "PDF圧縮(#{description})コマンドが失敗しました"
           tempfile.close
           tempfile.unlink
-          uploaded_file.tempfile
+          # エラー時は元のファイルを一時ファイルとして返す
+          temp = Tempfile.new(['fallback_receipt', '.pdf'])
+          FileUtils.cp(input_path, temp.path)
+          temp.rewind
+          temp
+        end
+      end
+
+      # カスタム設定で強力にPDFを圧縮（96dpi + JPEG品質60）
+      def compress_pdf_custom_aggressive(input_path)
+        tempfile = Tempfile.new(['compressed_receipt', '.pdf'])
+
+        result = system(
+          'gs',
+          '-sDEVICE=pdfwrite',
+          '-dCompatibilityLevel=1.4',
+          '-dNOPAUSE',
+          '-dQUIET',
+          '-dBATCH',
+          '-dDownsampleColorImages=true',
+          '-dDownsampleGrayImages=true',
+          '-dDownsampleMonoImages=true',
+          '-dColorImageResolution=96',
+          '-dGrayImageResolution=96',
+          '-dMonoImageResolution=150',
+          '-dColorImageDownsampleType=/Bicubic',
+          '-dGrayImageDownsampleType=/Bicubic',
+          '-dAutoFilterColorImages=false',
+          '-dAutoFilterGrayImages=false',
+          '-dColorImageFilter=/DCTEncode',
+          '-dGrayImageFilter=/DCTEncode',
+          '-c', '.setpdfwrite << /ColorImageDict << /QFactor 0.76 /Blend 1 /HSamples [2 1 1 2] /VSamples [2 1 1 2] >> >> setdistillerparams',
+          '-f', input_path,
+          "-sOutputFile=#{tempfile.path}"
+        )
+
+        if result
+          tempfile.rewind
+          tempfile
+        else
+          Rails.logger.error "PDF圧縮(カスタム強力)コマンドが失敗しました"
+          tempfile.close
+          tempfile.unlink
+          # エラー時は元のファイルを一時ファイルとして返す
+          temp = Tempfile.new(['fallback_receipt', '.pdf'])
+          FileUtils.cp(input_path, temp.path)
+          temp.rewind
+          temp
         end
       end
 
