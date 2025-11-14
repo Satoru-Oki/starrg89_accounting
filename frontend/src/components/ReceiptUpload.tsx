@@ -15,6 +15,7 @@ import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import ImageIcon from '@mui/icons-material/Image';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import imageCompression from 'browser-image-compression';
 import api from '../services/api';
 
 interface ReceiptUploadProps {
@@ -72,9 +73,32 @@ export const ReceiptUpload = ({
     setError('');
 
     try {
+      let fileToUpload = file;
+
+      // 画像の場合は圧縮処理を実行
+      if (isImage) {
+        const options = {
+          maxSizeMB: 0.5, // 最大500KB
+          maxWidthOrHeight: 1920, // 最大幅または高さ
+          useWebWorker: true, // Web Workerを使用して処理を高速化
+          initialQuality: 0.8, // 初期画質
+        };
+
+        try {
+          console.log('元のファイルサイズ:', (file.size / 1024).toFixed(2), 'KB');
+          const compressedFile = await imageCompression(file, options);
+          console.log('圧縮後のファイルサイズ:', (compressedFile.size / 1024).toFixed(2), 'KB');
+          fileToUpload = compressedFile;
+        } catch (compressionError) {
+          console.error('画像圧縮エラー:', compressionError);
+          // 圧縮に失敗した場合は元のファイルを使用
+          fileToUpload = file;
+        }
+      }
+
       // OCR処理を実行
       const formData = new FormData();
-      formData.append('receipt', file);
+      formData.append('receipt', fileToUpload);
 
       const response = await api.post('/transactions/extract_receipt_data', formData, {
         headers: {
@@ -89,16 +113,16 @@ export const ReceiptUpload = ({
         raw_text: response.data.raw_text,
       };
 
-      // ファイルのプレビューURLを作成
-      const fileUrl = URL.createObjectURL(file);
+      // ファイルのプレビューURLを作成（圧縮後のファイルを使用）
+      const fileUrl = URL.createObjectURL(fileToUpload);
       setPreviewImageUrl(fileUrl);
 
       // PDFかどうかを判定
-      const isPdf = file.type === 'application/pdf';
+      const isPdf = fileToUpload.type === 'application/pdf';
       setIsPdfPreview(isPdf);
 
-      // 確認ダイアログ用にデータを保存
-      setPendingFile(file);
+      // 確認ダイアログ用にデータを保存（圧縮後のファイルを使用）
+      setPendingFile(fileToUpload);
       setPendingOcrData(ocrData);
       setConfirmDialogOpen(true);
 

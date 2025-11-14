@@ -159,18 +159,25 @@ module Api
             transaction.receipt.purge
 
             if is_pdf
-              # PDFの場合はそのまま保存（圧縮しない）
+              # PDFの場合は圧縮して保存
+              compressed_file = compress_pdf(uploaded_file)
               date_path = generate_date_based_key(transaction.date, 'receipt.pdf', transaction.user_id)
 
               # カスタムキーでアップロード
               blob = ActiveStorage::Blob.create_and_upload!(
-                io: uploaded_file.tempfile,
+                io: compressed_file,
                 filename: 'receipt.pdf',
                 content_type: 'application/pdf',
                 key: date_path
               )
 
               transaction.receipt.attach(blob)
+
+              # 圧縮で作成した一時ファイルをクリーンアップ（元のファイルと異なる場合のみ）
+              if compressed_file != uploaded_file.tempfile
+                compressed_file.close
+                compressed_file.unlink
+              end
             else
               # 画像の場合は圧縮してJPEGで保存
               compressed_file = compress_image(uploaded_file)
@@ -227,6 +234,64 @@ module Api
           tempfile.close
           tempfile.unlink
           # エラー時は元のファイルを返す
+          uploaded_file.tempfile
+        end
+      end
+
+      # PDFを圧縮
+      def compress_pdf(uploaded_file)
+        # 元のファイルサイズを確認
+        original_size = File.size(uploaded_file.tempfile.path)
+
+        # 500KB以下なら圧縮しない
+        if original_size <= 500 * 1024
+          Rails.logger.info "PDFサイズが500KB以下のため、圧縮をスキップします: #{(original_size / 1024.0).round(2)}KB"
+          return uploaded_file.tempfile
+        end
+
+        # 一時ファイルを作成
+        tempfile = Tempfile.new(['compressed_receipt', '.pdf'])
+
+        begin
+          # Ghostscriptでpdfを圧縮
+          # /ebook設定: 150dpi、レシートOCRに十分な画質
+          result = system(
+            'gs',
+            '-sDEVICE=pdfwrite',
+            '-dCompatibilityLevel=1.4',
+            '-dPDFSETTINGS=/ebook',
+            '-dNOPAUSE',
+            '-dQUIET',
+            '-dBATCH',
+            "-sOutputFile=#{tempfile.path}",
+            uploaded_file.tempfile.path
+          )
+
+          if result
+            compressed_size = File.size(tempfile.path)
+            Rails.logger.info "PDF圧縮成功: #{(original_size / 1024.0).round(2)}KB → #{(compressed_size / 1024.0).round(2)}KB"
+
+            # 圧縮後のサイズが元より大きい場合は元のファイルを使用
+            if compressed_size >= original_size
+              Rails.logger.info "圧縮後のサイズが大きいため、元のファイルを使用します"
+              tempfile.close
+              tempfile.unlink
+              return uploaded_file.tempfile
+            end
+
+            tempfile.rewind
+            tempfile
+          else
+            Rails.logger.error "PDF圧縮コマンドが失敗しました"
+            tempfile.close
+            tempfile.unlink
+            uploaded_file.tempfile
+          end
+        rescue StandardError => e
+          Rails.logger.error "PDF圧縮エラー: #{e.message}"
+          Rails.logger.error e.backtrace.join("\n")
+          tempfile.close
+          tempfile.unlink
           uploaded_file.tempfile
         end
       end
