@@ -270,29 +270,17 @@ export const ReceiptUpload = ({
               {previewImageUrl && (
                 <>
                   {isPdfPreview ? (
-                    // PDFの場合は新しいタブで開くリンクを表示
-                    <Box sx={{
-                      textAlign: 'center',
-                      py: 4,
-                      border: '1px solid #ddd',
-                      borderRadius: 1,
-                      minHeight: '200px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center'
-                    }}>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        PDFファイル
-                      </Typography>
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        onClick={() => window.open(previewImageUrl, '_blank')}
-                        sx={{ mt: 2, mx: 'auto' }}
-                      >
-                        PDFをプレビュー
-                      </Button>
-                    </Box>
+                    // PDFの場合
+                    <Box
+                      component="iframe"
+                      src={previewImageUrl}
+                      sx={{
+                        width: '100%',
+                        height: '500px',
+                        border: '1px solid #ddd',
+                        borderRadius: 1,
+                      }}
+                    />
                   ) : (
                     // 画像の場合
                     <Box
@@ -387,20 +375,16 @@ export const ReceiptUpload = ({
           {receiptUrl && (
             <>
               {isPdf ? (
-                // PDFの場合は新しいタブで開くリンクを表示
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography variant="body1" gutterBottom>
-                    PDFファイルを別タブで開きます
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={() => window.open(receiptUrl, '_blank')}
-                    sx={{ mt: 2 }}
-                  >
-                    PDFを開く
-                  </Button>
-                </Box>
+                // PDFの場合
+                <Box
+                  component="iframe"
+                  src={receiptUrl}
+                  sx={{
+                    width: '100%',
+                    height: '70vh',
+                    border: 'none',
+                  }}
+                />
               ) : (
                 // 画像の場合
                 <Box
