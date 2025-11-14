@@ -10,7 +10,12 @@ Rails.application.routes.draw do
       resources :users, only: [:index, :show, :create, :update, :destroy]
 
       # 取引管理
-      resources :transactions
+      resources :transactions do
+        collection do
+          post 'extract_receipt_data', to: 'transactions#extract_receipt_data'
+          get 'receipt_directory', to: 'transactions#receipt_directory'
+        end
+      end
     end
   end
 

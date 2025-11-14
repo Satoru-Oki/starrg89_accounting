@@ -4,6 +4,10 @@
 .env.local
 .env.development
 
+# GCPクレデンシャル
+gcp-credentials.json
+*-credentials.json
+
 # Docker volumes
 postgres_data/
 rails_cache/

@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import TransactionTable from './pages/TransactionTable';
+import ReceiptDirectory from './pages/ReceiptDirectory';
 import PrivateRoute from './components/PrivateRoute';
 
 const theme = createTheme({
@@ -47,6 +48,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <TransactionTable />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/receipts"
+              element={
+                <PrivateRoute>
+                  <ReceiptDirectory />
                 </PrivateRoute>
               }
             />

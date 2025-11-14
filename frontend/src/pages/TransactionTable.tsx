@@ -22,10 +22,12 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
+import FolderIcon from '@mui/icons-material/Folder';
 import { useAuth } from '../contexts/AuthContext';
 import { Transaction } from '../types';
 import api from '../services/api';
 import { PDFExportButton } from '../components/PDFExport';
+import { ReceiptUpload } from '../components/ReceiptUpload';
 
 // ローカル時刻でYYYY-MM-DD形式の文字列に変換するヘルパー関数
 const formatDateToLocalString = (date: Date): string => {
@@ -53,9 +55,9 @@ const TransactionTable = () => {
     return dateStr;
   });
 
-  // 更新確認日時（ローカルストレージから取得、管理者専用）
+  // 更新確認日時（ローカルストレージから取得、管理者とスーパー管理者）
   const [lastConfirmedDate, setLastConfirmedDate] = useState<string>(() => {
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'superadmin') {
       return localStorage.getItem('lastConfirmedDate') || '';
     }
     return '';
@@ -75,7 +77,7 @@ const TransactionTable = () => {
   ];
 
   const receiptStatuses = [
-    'PDF配置済',
+    'レシート画像配置済',
     '確認中',
     '未添付',
   ];
@@ -110,12 +112,16 @@ const TransactionTable = () => {
     }
   };
 
-  // ユーザーのリストを生成（管理者のみ）
+  // ユーザーのリストを生成（管理者とスーパー管理者）
   const availableUsers = useMemo(() => {
-    if (user?.role !== 'admin') return [];
+    if (user?.role !== 'admin' && user?.role !== 'superadmin') return [];
     const users = new Set<string>();
     allRows.forEach((row: any) => {
       if (row.user_name) {
+        // adminの場合はokiを除外
+        if (user?.role === 'admin' && row.user_login_id === 'oki') {
+          return;
+        }
         users.add(row.user_name);
       }
     });
@@ -144,8 +150,8 @@ const TransactionTable = () => {
   // ユーザー別・月別にフィルタリングされたデータ
   const filteredRows = useMemo(() => {
     return allRows.filter((row: any) => {
-      // ユーザーフィルター（管理者のみ）
-      if (user?.role === 'admin' && selectedUser !== 'all') {
+      // ユーザーフィルター（管理者とスーパー管理者）
+      if ((user?.role === 'admin' || user?.role === 'superadmin') && selectedUser !== 'all') {
         if (row.isNew) return true;
         if (row.user_name !== selectedUser) return false;
       }
@@ -175,7 +181,7 @@ const TransactionTable = () => {
 
     const newRow: any = {
       id: newId,
-      date: today, // Dateオブジェクトとして設定
+      date: null, // OCRで読み取った日付を優先するため、初期値はnull
       deposit_from_star: null,
       payment: null,
       payee: '',
@@ -256,53 +262,118 @@ const TransactionTable = () => {
         throw new Error(errorMsg);
       }
 
-      const transactionData: any = {
-        date: dateValue,
-        category: newRow.category || '',
-        description: newRow.description || '',
-        receipt_status: newRow.receipt_status || '未添付',
-        payee: newRow.payee || '',
-      };
-
-      // 入金額の検証
-      if (newRow.deposit_from_star != null && newRow.deposit_from_star !== '') {
-        const depositValue = Number(newRow.deposit_from_star);
-        if (isNaN(depositValue)) {
-          throw new Error('入金額は数値で入力してください');
-        }
-        if (depositValue > 99999999) {
-          throw new Error('入金額は99,999,999円以下で入力してください');
-        }
-        if (depositValue < 0) {
-          throw new Error('入金額は0以上で入力してください');
-        }
-        transactionData.deposit_from_star = depositValue;
-      }
-
-      // 支払額の検証
-      if (newRow.payment != null && newRow.payment !== '') {
-        const paymentValue = Number(newRow.payment);
-        if (isNaN(paymentValue)) {
-          throw new Error('支払額は数値で入力してください');
-        }
-        if (paymentValue > 99999999) {
-          throw new Error('支払額は99,999,999円以下で入力してください');
-        }
-        if (paymentValue < 0) {
-          throw new Error('支払額は0以上で入力してください');
-        }
-        transactionData.payment = paymentValue;
-      }
-
-      console.log('Transaction data to send:', JSON.stringify(transactionData, null, 2));
-
+      // レシート画像がある場合はFormDataを使用、ない場合はJSONで送信
       let response;
-      if (newRow.isNew) {
-        console.log('Creating new transaction...');
-        response = await api.post('/transactions', transactionData);
+      const hasReceiptFile = newRow.receiptFile instanceof File;
+
+      if (hasReceiptFile) {
+        // FormDataで送信（レシート画像あり）
+        const formData = new FormData();
+        formData.append('date', dateValue);
+        formData.append('category', newRow.category || '');
+        formData.append('description', newRow.description || '');
+        formData.append('receipt_status', newRow.receipt_status || '未添付');
+        formData.append('payee', newRow.payee || '');
+
+        // 入金額の検証
+        if (newRow.deposit_from_star != null && newRow.deposit_from_star !== '') {
+          const depositValue = Number(newRow.deposit_from_star);
+          if (isNaN(depositValue)) {
+            throw new Error('入金額は数値で入力してください');
+          }
+          if (depositValue > 99999999) {
+            throw new Error('入金額は99,999,999円以下で入力してください');
+          }
+          if (depositValue < 0) {
+            throw new Error('入金額は0以上で入力してください');
+          }
+          formData.append('deposit_from_star', depositValue.toString());
+        }
+
+        // 支払額の検証
+        if (newRow.payment != null && newRow.payment !== '') {
+          const paymentValue = Number(newRow.payment);
+          if (isNaN(paymentValue)) {
+            throw new Error('支払額は数値で入力してください');
+          }
+          if (paymentValue > 99999999) {
+            throw new Error('支払額は99,999,999円以下で入力してください');
+          }
+          if (paymentValue < 0) {
+            throw new Error('支払額は0以上で入力してください');
+          }
+          formData.append('payment', paymentValue.toString());
+        }
+
+        // レシート画像を追加
+        formData.append('receipt', newRow.receiptFile);
+
+        console.log('Sending with receipt file');
+
+        if (newRow.isNew) {
+          console.log('Creating new transaction with receipt...');
+          response = await api.post('/transactions', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+        } else {
+          console.log('Updating transaction ID with receipt:', newRow.id);
+          response = await api.put(`/transactions/${newRow.id}`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+        }
       } else {
-        console.log('Updating transaction ID:', newRow.id);
-        response = await api.put(`/transactions/${newRow.id}`, transactionData);
+        // JSONで送信（レシート画像なし）
+        const transactionData: any = {
+          date: dateValue,
+          category: newRow.category || '',
+          description: newRow.description || '',
+          receipt_status: newRow.receipt_status || '未添付',
+          payee: newRow.payee || '',
+        };
+
+        // 入金額の検証
+        if (newRow.deposit_from_star != null && newRow.deposit_from_star !== '') {
+          const depositValue = Number(newRow.deposit_from_star);
+          if (isNaN(depositValue)) {
+            throw new Error('入金額は数値で入力してください');
+          }
+          if (depositValue > 99999999) {
+            throw new Error('入金額は99,999,999円以下で入力してください');
+          }
+          if (depositValue < 0) {
+            throw new Error('入金額は0以上で入力してください');
+          }
+          transactionData.deposit_from_star = depositValue;
+        }
+
+        // 支払額の検証
+        if (newRow.payment != null && newRow.payment !== '') {
+          const paymentValue = Number(newRow.payment);
+          if (isNaN(paymentValue)) {
+            throw new Error('支払額は数値で入力してください');
+          }
+          if (paymentValue > 99999999) {
+            throw new Error('支払額は99,999,999円以下で入力してください');
+          }
+          if (paymentValue < 0) {
+            throw new Error('支払額は0以上で入力してください');
+          }
+          transactionData.payment = paymentValue;
+        }
+
+        console.log('Transaction data to send:', JSON.stringify(transactionData, null, 2));
+
+        if (newRow.isNew) {
+          console.log('Creating new transaction...');
+          response = await api.post('/transactions', transactionData);
+        } else {
+          console.log('Updating transaction ID:', newRow.id);
+          response = await api.put(`/transactions/${newRow.id}`, transactionData);
+        }
       }
 
       console.log('API Response:', JSON.stringify(response.data, null, 2));
@@ -389,6 +460,86 @@ const TransactionTable = () => {
     alert('更新を確認しました');
   };
 
+  const handleReceiptUpload = (rowId: GridRowId) => (file: File, ocrData: any) => {
+    console.log('Receipt uploaded for row:', rowId);
+    console.log('OCR data:', ocrData);
+
+    // 行データを更新
+    const updatedRows = allRows.map((row: any) => {
+      if (row.id === rowId) {
+        const updatedRow = { ...row };
+
+        // レシートファイルを保存
+        updatedRow.receiptFile = file;
+
+        // OCRで読み取った日付を設定（常に上書き）
+        if (ocrData.date) {
+          try {
+            const parsedDate = new Date(ocrData.date);
+            if (!isNaN(parsedDate.getTime())) {
+              updatedRow.date = parsedDate;
+            }
+          } catch (e) {
+            console.error('Date parsing error:', e);
+          }
+        }
+
+        // OCRで読み取った金額を設定（常に上書き）
+        if (ocrData.amount) {
+          updatedRow.payment = ocrData.amount;
+        }
+
+        // OCRで読み取った支払先を設定（常に上書き）
+        if (ocrData.payee) {
+          updatedRow.payee = ocrData.payee;
+        }
+
+        // レシートステータスを「レシート画像配置済」に設定
+        updatedRow.receipt_status = 'レシート画像配置済';
+
+        // 既存行の場合はisDirtyフラグを設定
+        if (!row.isNew) {
+          updatedRow.isDirty = true;
+        }
+
+        return updatedRow;
+      }
+      return row;
+    });
+
+    setAllRows(updatedRows);
+  };
+
+  const handleReceiptDelete = (rowId: GridRowId) => () => {
+    console.log('Receipt deleted for row:', rowId);
+
+    // 行データを更新
+    const updatedRows = allRows.map((row: any) => {
+      if (row.id === rowId) {
+        const updatedRow = { ...row };
+
+        // レシートファイルを削除
+        delete updatedRow.receiptFile;
+
+        // receipt_urlも削除（サーバーから取得した既存のレシート）
+        delete updatedRow.receipt_url;
+
+        // レシートステータスを「未添付」に戻す
+        updatedRow.receipt_status = '未添付';
+
+        // 既存行の場合はisDirtyフラグを設定
+        if (!row.isNew) {
+          updatedRow.isDirty = true;
+        }
+
+        return updatedRow;
+      }
+      return row;
+    });
+
+    setAllRows(updatedRows);
+  };
+
   const handleDeleteRow = async (id: GridRowId) => {
     const useMockData = import.meta.env.VITE_USE_MOCK_AUTH === 'true';
 
@@ -427,34 +578,32 @@ const TransactionTable = () => {
     {
       field: 'user_name',
       headerName: 'ユーザー',
-      width: isMobile ? 80 : 120,
-      minWidth: 80,
+      width: isMobile ? 70 : 90,
+      minWidth: 70,
       editable: false,
-      hide: user?.role !== 'admin',
+      hide: user?.role !== 'admin' && user?.role !== 'superadmin',
     },
     {
       field: 'date',
       headerName: '日付',
-      width: isMobile ? 100 : 130,
+      width: isMobile ? 90 : 110,
       minWidth: 90,
       editable: true,
       type: 'date',
     },
     {
       field: 'deposit_from_star',
-      headerName: isMobile ? '入金' : 'Starから入金',
-      width: isMobile ? 90 : 140,
-      minWidth: 80,
+      headerName: '入金',
+      width: isMobile ? 70 : 90,
+      minWidth: 70,
       editable: true,
-      type: 'number',
     },
     {
       field: 'payment',
       headerName: '支払い',
-      width: isMobile ? 90 : 140,
-      minWidth: 80,
+      width: isMobile ? 70 : 90,
+      minWidth: 70,
       editable: true,
-      type: 'number',
     },
     {
       field: 'payee',
@@ -466,8 +615,8 @@ const TransactionTable = () => {
     {
       field: 'category',
       headerName: '費目',
-      width: isMobile ? 100 : 150,
-      minWidth: 80,
+      width: isMobile ? 70 : 90,
+      minWidth: 70,
       editable: true,
       type: 'singleSelect',
       valueOptions: categories,
@@ -492,14 +641,30 @@ const TransactionTable = () => {
       hide: isMobile,
     },
     {
+      field: 'receipt',
+      headerName: 'レシート',
+      width: 140,
+      minWidth: 120,
+      editable: false,
+      sortable: false,
+      renderCell: (params) => (
+        <ReceiptUpload
+          receiptUrl={params.row.receipt_url}
+          onReceiptUpload={handleReceiptUpload(params.id)}
+          onReceiptDelete={handleReceiptDelete(params.id)}
+          disabled={false}
+        />
+      ),
+    },
+    {
       field: 'balance',
       headerName: '残金',
-      width: isMobile ? 100 : 140,
-      minWidth: 90,
+      width: isMobile ? 70 : 90,
+      minWidth: 70,
       editable: false,
       type: 'number',
     },
-    ...(user?.role === 'admin' ? [{
+    ...((user?.role === 'admin' || user?.role === 'superadmin') ? [{
       field: 'updated_at',
       headerName: '更新日',
       width: isMobile ? 100 : 120,
@@ -566,6 +731,18 @@ const TransactionTable = () => {
             {isMobile ? 'Star R.G 89' : 'Star R.G 89 経費清算システム'}
           </Typography>
           {!isMobile && (
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'white',
+                fontSize: '0.85rem',
+                mr: 8,
+              }}
+            >
+              ※ 領収書は登録番号（Tからはじまる13桁）の記載があるものを添付してください
+            </Typography>
+          )}
+          {!isMobile && (
             <Typography variant="body1" sx={{ mr: 2 }}>
               {user?.name} さん
             </Typography>
@@ -591,7 +768,7 @@ const TransactionTable = () => {
           alignItems: isMobile ? 'stretch' : 'center',
           flexWrap: 'wrap'
         }}>
-          {user?.role === 'admin' && (
+          {(user?.role === 'admin' || user?.role === 'superadmin') && (
             <FormControl sx={{ minWidth: isMobile ? '100%' : 200 }} size="small">
               <InputLabel>ユーザー</InputLabel>
               <Select
@@ -658,7 +835,7 @@ const TransactionTable = () => {
             >
               {isMobile ? '保存' : 'すべて保存'}
             </Button>
-            {user?.role === 'admin' && (
+            {(user?.role === 'admin' || user?.role === 'superadmin') && (
               <Button
                 variant="outlined"
                 color="success"
@@ -669,33 +846,19 @@ const TransactionTable = () => {
                 {isMobile ? '確認' : '更新確認'}
               </Button>
             )}
-            {!isMobile && (
-              <Typography
-                variant="body2"
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  color: 'black',
-                  fontSize: '0.85rem',
-                  ml: 'auto',
-                }}
+            {user?.role === 'superadmin' && (
+              <Button
+                variant="outlined"
+                color="info"
+                startIcon={!isMobile && <FolderIcon />}
+                onClick={() => navigate('/receipts')}
+                size="small"
+                fullWidth={isMobile}
               >
-                ※ 領収書は登録番号（Tからはじまる13桁）の記載があるものを添付してください
-              </Typography>
+                {isMobile ? 'レシート' : 'レシートディレクトリ'}
+              </Button>
             )}
           </Box>
-          {isMobile && (
-            <Typography
-              variant="body2"
-              sx={{
-                color: 'black',
-                fontSize: '0.8rem',
-                mt: 1,
-              }}
-            >
-              ※ 領収書は登録番号（Tからはじまる13桁）の記載があるものを添付してください
-            </Typography>
-          )}
         </Box>
 
         <Box sx={{
@@ -715,6 +878,7 @@ const TransactionTable = () => {
               const isEditable = params.field !== 'balance' &&
                                  params.field !== 'updated_at' &&
                                  params.field !== 'user_name' &&
+                                 params.field !== 'receipt' &&
                                  params.field !== 'actions';
               if (isEditable && params.isEditable) {
                 apiRef.current.startCellEditMode({ id: params.id, field: params.field });
@@ -737,8 +901,8 @@ const TransactionTable = () => {
               // paramsまたはparams.rowが存在しない場合は何も返さない
               if (!params || !params.row) return '';
 
-              // 管理者以外は何も返さない
-              if (user?.role !== 'admin') return '';
+              // 管理者とスーパー管理者以外は何も返さない
+              if (user?.role !== 'admin' && user?.role !== 'superadmin') return '';
 
               // 更新日列のみハイライト対象
               if (params.field !== 'updated_at') return '';
@@ -766,7 +930,7 @@ const TransactionTable = () => {
               }
               return '';
             }}
-            isCellEditable={(params) => params.field !== 'balance' && params.field !== 'updated_at' && params.field !== 'user_name'}
+            isCellEditable={(params) => params.field !== 'balance' && params.field !== 'updated_at' && params.field !== 'user_name' && params.field !== 'receipt'}
             disableRowSelectionOnClick
             density={isMobile ? 'compact' : 'standard'}
             pageSizeOptions={[5, 10, 25, 50, 100]}

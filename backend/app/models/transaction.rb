@@ -1,10 +1,24 @@
 class Transaction < ApplicationRecord
   belongs_to :user
-  
+  has_one_attached :receipt
+
   validates :date, presence: true
   validates :user, presence: true
-  
+
   after_commit :recalculate_user_balances, on: [:create, :update, :destroy]
+
+  # レシート画像をカスタムパスに保存
+  def receipt_key
+    return nil unless receipt.attached?
+
+    # OCRで読み取った日付、または取引日付を使用
+    date_for_path = date || Date.today
+    year = date_for_path.year
+    month = date_for_path.month.to_s.rjust(2, '0')
+    day = date_for_path.day.to_s.rjust(2, '0')
+
+    "receipts/#{year}/#{month}/#{day}/#{receipt.key}"
+  end
   
   scope :by_date, -> { order(date: :asc, id: :asc) }
   scope :for_user, ->(user_id) { where(user_id: user_id) }

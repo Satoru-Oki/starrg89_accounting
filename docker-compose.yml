@@ -15,6 +15,7 @@ services:
     user: root
     volumes:
       - ./backend:/rails
+      - ./gcp-credentials.json:/rails/config/gcp-credentials.json:ro
     ports:
       - "3000:3000"
     depends_on:
@@ -22,6 +23,10 @@ services:
     environment:
       RAILS_ENV: development
       DATABASE_URL: postgresql://postgres:password@db:5432/accounting_app_development
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID}
+      GCS_BUCKET: ${GCS_BUCKET}
+      GOOGLE_APPLICATION_CREDENTIALS: /rails/config/gcp-credentials.json
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
 
   frontend:
     build: ./frontend
@@ -30,7 +35,8 @@ services:
       - ./frontend:/app
       - /app/node_modules
     ports:
-      - "5173:5173"
+      - "5173:51
+      73"
     environment:
       - VITE_API_URL=http://localhost:3000/api/v1
 

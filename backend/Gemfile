@@ -33,6 +33,13 @@ gem "bootsnap", require: false
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 gem "image_processing", "~> 1.2"
 
+# Google Cloud Platform
+gem "google-cloud-storage", "~> 1.47", require: false
+gem "google-cloud-vision", "~> 1.4"
+
+# Google Gemini AI
+gem "gemini-ai"
+
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 gem "rack-cors"
 

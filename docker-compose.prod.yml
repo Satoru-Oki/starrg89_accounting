@@ -25,6 +25,7 @@ services:
     volumes:
       - ./backend:/rails
       - rails_cache:/rails/tmp/cache
+      - ./gcp-credentials.json:/rails/config/gcp-credentials.json:ro
     expose:
       - "3000"
     depends_on:
@@ -37,6 +38,10 @@ services:
       ALLOWED_HOSTS: ${DOMAIN}
       RAILS_MAX_THREADS: 3
       WEB_CONCURRENCY: 2
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID}
+      GCS_BUCKET: ${GCS_BUCKET}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
     restart: always
     networks:
       - app-network

@@ -6,15 +6,74 @@
 - ドメイン名（オプション、IPアドレスでも可）
 - SSHアクセス可能な状態
 
-## 1. VPSサーバーの初期設定
+## 1. GCP（Google Cloud Platform）の設定
 
-### 1.1 SSHでサーバーに接続
+### 1.1 Cloud Storageバケットの作成
+
+画像アップロード機能で使用するGCSバケットを作成します。
+
+```bash
+# gcloudコマンドがインストールされていることを確認
+# インストールされていない場合: https://cloud.google.com/sdk/docs/install
+
+# プロジェクトを設定
+gcloud config set project accounting-app-478114
+
+# バケットを作成（リージョンは asia-northeast1 を推奨）
+gsutil mb -l asia-northeast1 gs://your-bucket-name
+
+# バケット名の例:
+# - accounting-app-storage
+# - accounting-app-478114-uploads
+# - starrg89-accounting-app
+
+# バケットのCORS設定（フロントエンドからのアップロードを許可）
+echo '[
+  {
+    "origin": ["http://starrg89.xyz", "https://starrg89.xyz"],
+    "method": ["GET", "POST", "PUT", "DELETE"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 3600
+  }
+]' > cors.json
+
+gsutil cors set cors.json gs://your-bucket-name
+
+# 設定確認
+gsutil cors get gs://your-bucket-name
+```
+
+### 1.2 サービスアカウントの権限確認
+
+既に作成済みのサービスアカウントに、必要な権限が付与されていることを確認します。
+
+```bash
+# サービスアカウントのメールアドレスを確認
+gcloud iam service-accounts list
+
+# 必要な権限:
+# - Storage Object Admin (roles/storage.objectAdmin)
+# - Cloud Vision API User (roles/cloudvision.user)
+
+# 権限の付与（まだの場合）
+gcloud projects add-iam-policy-binding accounting-app-478114 \
+  --member="serviceAccount:your-service-account@accounting-app-478114.iam.gserviceaccount.com" \
+  --role="roles/storage.objectAdmin"
+
+gcloud projects add-iam-policy-binding accounting-app-478114 \
+  --member="serviceAccount:your-service-account@accounting-app-478114.iam.gserviceaccount.com" \
+  --role="roles/cloudvision.user"
+```
+
+## 2. VPSサーバーの初期設定
+
+### 2.1 SSHでサーバーに接続
 
 ```bash
 ssh root@your-vps-ip
 ```
 
-### 1.2 必要なパッケージのインストール
+### 2.2 必要なパッケージのインストール
 
 ```bash
 # システムアップデート
@@ -39,7 +98,7 @@ docker --version
 docker compose version
 ```
 
-### 1.3 一般ユーザーの作成（推奨）
+### 2.3 一般ユーザーの作成（推奨）
 
 ```bash
 # ユーザー作成
@@ -54,9 +113,9 @@ chmod 700 ~/.ssh
 # 公開鍵を ~/.ssh/authorized_keys に追加
 ```
 
-## 2. アプリケーションのデプロイ
+## 3. アプリケーションのデプロイ
 
-### 2.1 コードのアップロード
+### 3.1 コードのアップロード
 
 #### 方法A: Gitを使用（推奨）
 
@@ -77,7 +136,7 @@ cd accounting-app
 scp -r /path/to/accounting-app deploy@your-vps-ip:~/
 ```
 
-### 2.2 環境変数ファイルの作成
+### 3.2 環境変数ファイルの作成
 
 ```bash
 cd ~/accounting-app
@@ -104,9 +163,30 @@ DOMAIN=your-domain.com
 
 RAILS_MASTER_KEY=生成したキー
 SECRET_KEY_BASE=生成したキー
+
+# GCP設定
+GCP_PROJECT_ID=your-gcp-project-id
+GCS_BUCKET=your-gcs-bucket-name
+GOOGLE_APPLICATION_CREDENTIALS=/rails/config/gcp-credentials.json
 ```
 
-### 2.3 データベースのセットアップ
+### 3.3 GCPサービスアカウントキーの配置
+
+```bash
+# GCPサービスアカウントキーをサーバーにアップロード
+# ローカルPCから実行:
+scp /path/to/your-service-account-key.json deploy@your-vps-ip:~/accounting-app/gcp-credentials.json
+
+# サーバー上でファイルの配置を確認
+ls -l ~/accounting-app/gcp-credentials.json
+
+# 権限を設定（読み取り専用）
+chmod 400 ~/accounting-app/gcp-credentials.json
+```
+
+**重要:** このファイルは機密情報を含むため、必ず安全に管理してください。
+
+### 3.4 データベースのセットアップ
 
 ```bash
 # 本番環境でコンテナを起動
@@ -122,7 +202,7 @@ docker compose -f docker-compose.prod.yml exec backend bundle exec rails db:migr
 docker compose -f docker-compose.prod.yml exec backend bundle exec rails db:seed RAILS_ENV=production
 ```
 
-### 2.4 アプリケーションの起動
+### 3.5 アプリケーションの起動
 
 ```bash
 # 全てのコンテナを起動
@@ -135,9 +215,9 @@ docker compose -f docker-compose.prod.yml logs -f
 docker compose -f docker-compose.prod.yml ps
 ```
 
-## 3. SSL証明書の設定（Let's Encrypt）
+## 4. SSL証明書の設定（Let's Encrypt）
 
-### 3.1 初回のSSL証明書取得
+### 4.1 初回のSSL証明書取得
 
 ```bash
 # ドメインを設定していることを確認
@@ -154,7 +234,7 @@ docker compose -f docker-compose.prod.yml run --rm certbot certonly \
   --no-eff-email
 ```
 
-### 3.2 Nginx設定でHTTPSを有効化
+### 4.2 Nginx設定でHTTPSを有効化
 
 ```bash
 # nginx/conf.d/app.confを編集
@@ -169,7 +249,7 @@ vim nginx/conf.d/app.conf
 docker compose -f docker-compose.prod.yml restart nginx
 ```
 
-## 4. ファイアウォールの設定
+## 5. ファイアウォールの設定
 
 ```bash
 # UFWのインストールと設定
@@ -187,23 +267,23 @@ ufw enable
 ufw status
 ```
 
-## 5. 動作確認
+## 6. 動作確認
 
-### 5.1 アクセステスト
+### 6.1 アクセステスト
 
 ブラウザで以下にアクセス：
 - HTTP: http://your-domain.com または http://your-vps-ip
 - HTTPS: https://your-domain.com（SSL設定後）
 
-### 5.2 ログイン確認
+### 6.2 ログイン確認
 
 初期ユーザーでログイン：
 - **ユーザーID**: admin
 - **パスワード**: starrg89（シードデータを投入した場合）
 
-## 6. 運用管理
+## 7. 運用管理
 
-### 6.1 アプリケーションの更新
+### 7.1 アプリケーションの更新
 
 ```bash
 cd ~/accounting-app
@@ -218,7 +298,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 docker compose -f docker-compose.prod.yml exec backend bundle exec rails db:migrate RAILS_ENV=production
 ```
 
-### 6.2 ログの確認
+### 7.2 ログの確認
 
 ```bash
 # 全てのログ
@@ -230,7 +310,7 @@ docker compose -f docker-compose.prod.yml logs -f frontend
 docker compose -f docker-compose.prod.yml logs -f nginx
 ```
 
-### 6.3 バックアップ
+### 7.3 バックアップ
 
 ```bash
 # データベースのバックアップ
@@ -242,7 +322,7 @@ docker compose -f docker-compose.prod.yml exec -T db psql \
   -U postgres accounting_app_production < backup_20250110.sql
 ```
 
-### 6.4 コンテナの停止・再起動
+### 7.4 コンテナの停止・再起動
 
 ```bash
 # 停止
