@@ -205,7 +205,6 @@ module Api
               compressed_file.unlink
             end
           end
-        end
       end
 
       # 画像をJPEG形式に圧縮
