@@ -6,9 +6,10 @@ module Api
           # superadminは全てのトランザクションを閲覧可能
           Transaction.includes(:user).all
         elsif current_user.role == 'admin'
-          # adminはokiユーザー以外のトランザクションを閲覧可能
+          # adminはスーパー管理者とokiユーザー以外のトランザクションを閲覧可能
           Transaction.includes(:user)
                     .joins(:user)
+                    .where.not(users: { role: 'superadmin' })
                     .where.not(users: { user_id: 'oki' })
         else
           # 一般ユーザーは自分のトランザクションのみ閲覧可能
@@ -439,9 +440,9 @@ module Api
           # superadminは全てのトランザクションにアクセス可能
           Transaction.find(params[:id])
         elsif current_user.role == 'admin'
-          # adminはokiユーザー以外のトランザクションにアクセス可能
+          # adminはスーパー管理者とokiユーザー以外のトランザクションにアクセス可能
           transaction = Transaction.includes(:user).find(params[:id])
-          if transaction.user.user_id == 'oki'
+          if transaction.user.role == 'superadmin' || transaction.user.user_id == 'oki'
             raise ActiveRecord::RecordNotFound
           end
           transaction
