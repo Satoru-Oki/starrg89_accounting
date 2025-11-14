@@ -139,22 +139,29 @@ module Api
         # まず画像/PDFを一時的に添付してOCR処理
         transaction.receipt.attach(uploaded_file)
 
-        # OCR処理
-        ocr_service = ReceiptOcrService.new
-        result = ocr_service.extract_from_attachment(transaction.receipt)
+        # OCR処理（失敗しても続行）
+        begin
+          ocr_service = ReceiptOcrService.new
+          result = ocr_service.extract_from_attachment(transaction.receipt)
 
-        unless result[:error]
-          # OCRで読み取った値をフィールドに設定（既存の値がない場合のみ）
-          ocr_date = result[:date] ? Date.parse(result[:date]) : nil
-          transaction.date ||= ocr_date if ocr_date
-          transaction.payment ||= result[:amount] if result[:amount]
-          transaction.payee ||= result[:payee] if result[:payee]
+          unless result[:error]
+            # OCRで読み取った値をフィールドに設定（既存の値がない場合のみ）
+            ocr_date = result[:date] ? Date.parse(result[:date]) : nil
+            transaction.date ||= ocr_date if ocr_date
+            transaction.payment ||= result[:amount] if result[:amount]
+            transaction.payee ||= result[:payee] if result[:payee]
 
-          # レシート添付済みとして記録
-          transaction.receipt_status = 'レシート画像配置済'
+            # レシート添付済みとして記録
+            transaction.receipt_status = 'レシート画像配置済'
+          end
+        rescue StandardError => e
+          Rails.logger.error "OCR処理エラー（圧縮は続行）: #{e.message}"
+          Rails.logger.error e.backtrace.join("\n")
+          # OCRが失敗しても圧縮処理は実行する
+        end
 
-          # 日付が確定したので、日付ベースのキーで再アップロード
-          if transaction.date
+        # 日付が確定したので、日付ベースのキーで再アップロード（OCRの成否に関わらず実行）
+        if transaction.date
             # 既存の添付を削除
             transaction.receipt.purge
 
@@ -199,10 +206,6 @@ module Api
             end
           end
         end
-      rescue StandardError => e
-        Rails.logger.error "OCR処理エラー: #{e.message}"
-        Rails.logger.error e.backtrace.join("\n")
-        # エラーが発生してもトランザクション作成は継続
       end
 
       # 画像をJPEG形式に圧縮
