@@ -85,8 +85,20 @@ class ReceiptTrimmingService
       Rails.logger.error e.backtrace.join("\n")
       tempfile.close
       tempfile.unlink
-      # エラー時は元のファイルを返す
-      uploaded_file.tempfile
+      # エラー時は元のファイルを新しいTempfileにコピー
+      begin
+        new_tempfile = Tempfile.new(['receipt_original', '.jpg'])
+        uploaded_file.tempfile.rewind
+        IO.copy_stream(uploaded_file.tempfile, new_tempfile)
+        new_tempfile.rewind
+        Rails.logger.info "Returned original file due to trimming error"
+        new_tempfile
+      rescue => copy_error
+        Rails.logger.error "Tempfile copy error: #{copy_error.message}"
+        # コピーも失敗した場合は元のtempfileを返す
+        uploaded_file.tempfile.rewind
+        uploaded_file.tempfile
+      end
     end
   end
 end

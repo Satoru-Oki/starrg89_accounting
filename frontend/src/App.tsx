@@ -4,8 +4,9 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import TransactionTable from './pages/TransactionTable';
+import MainTable from './pages/MainTable';
 import ReceiptDirectory from './pages/ReceiptDirectory';
+import InvoiceDirectory from './pages/InvoiceDirectory';
 import PrivateRoute from './components/PrivateRoute';
 
 const theme = createTheme({
@@ -47,7 +48,15 @@ function App() {
               path="/transactions"
               element={
                 <PrivateRoute>
-                  <TransactionTable />
+                  <MainTable />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/invoices"
+              element={
+                <PrivateRoute>
+                  <MainTable />
                 </PrivateRoute>
               }
             />
@@ -56,6 +65,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <ReceiptDirectory />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/invoice-directory"
+              element={
+                <PrivateRoute>
+                  <InvoiceDirectory />
                 </PrivateRoute>
               }
             />

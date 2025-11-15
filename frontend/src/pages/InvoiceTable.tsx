@@ -29,7 +29,7 @@ import api from '../services/api';
 import { PDFExportButton } from '../components/PDFExport';
 import { ReceiptUpload } from '../components/ReceiptUpload';
 
-interface TransactionTableProps {
+interface InvoiceTableProps {
   hideAppBar?: boolean;
 }
 
@@ -41,7 +41,7 @@ const formatDateToLocalString = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) => {
+const InvoiceTable = ({ hideAppBar = false }: InvoiceTableProps = {}) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const theme = useTheme();
@@ -67,30 +67,16 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
     return '';
   });
 
-  const categories = [
-    '施設費用',
-    '交際費',
-    '事務用品',
-    '交通費',
-    '新体操用品',
-    '大会参加費',
-    '保険',
-    '衣装',
-    '駐車場',
-    'その他',
-  ];
-
-  const receiptStatuses = [
-    '領収書配置済',
-    '確認中',
-    '未添付',
+  const invoiceStatuses = [
+    '支払い済',
+    '未払い',
   ];
 
   useEffect(() => {
-    fetchTransactions();
+    fetchInvoices();
   }, []);
 
-  const fetchTransactions = async () => {
+  const fetchInvoices = async () => {
     const useMockData = import.meta.env.VITE_USE_MOCK_AUTH === 'true';
 
     if (useMockData) {
@@ -99,16 +85,16 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
     }
 
     try {
-      const response = await api.get('/transactions');
+      const response = await api.get('/invoices');
       // 日付をDateオブジェクトに変換
-      const transactions = response.data.map((t: any) => ({
+      const invoices = response.data.map((t: any) => ({
         ...t,
-        date: t.date ? new Date(t.date) : null,
+        invoice_date: t.invoice_date ? new Date(t.invoice_date) : null,
       }));
-      console.log('Fetched transactions:', transactions);
-      console.log('First transaction updated_at:', transactions[0]?.updated_at);
-      setAllRows(transactions);
-      return transactions;
+      console.log('Fetched invoices:', invoices);
+      console.log('First invoice updated_at:', invoices[0]?.updated_at);
+      setAllRows(invoices);
+      return invoices;
     } catch (err: any) {
       console.error('API Error:', err);
       setAllRows([]);
@@ -136,9 +122,9 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
     allRows.forEach((row: any) => {
-      if (row.date) {
+      if (row.invoice_date) {
         try {
-          const date = row.date instanceof Date ? row.date : new Date(row.date);
+          const date = row.invoice_date instanceof Date ? row.invoice_date : new Date(row.invoice_date);
           if (!isNaN(date.getTime())) {
             const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             months.add(monthKey);
@@ -163,9 +149,9 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
       // 月フィルター
       if (selectedMonth !== 'all') {
         if (row.isNew) return true;
-        if (!row.date) return false;
+        if (!row.invoice_date) return false;
         try {
-          const date = row.date instanceof Date ? row.date : new Date(row.date);
+          const date = row.invoice_date instanceof Date ? row.invoice_date : new Date(row.invoice_date);
           if (isNaN(date.getTime())) return false;
           const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
           if (monthKey !== selectedMonth) return false;
@@ -185,14 +171,11 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
 
     const newRow: any = {
       id: newId,
-      date: null, // OCRで読み取った日付を優先するため、初期値はnull
-      deposit_from_star: null,
-      payment: null,
-      payee: '',
-      category: '',
+      invoice_date: null, // OCRで読み取った日付を優先するため、初期値はnull
+      invoice_amount: null,
+      client: '',
       description: '',
-      receipt_status: '未添付',
-      balance: 0,
+      status: '未払い',
       isNew: true,
       user_id: user?.id,
       user_name: user?.name || '',
@@ -205,8 +188,8 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
   const handleSaveRow = async (newRow: any) => {
     console.log('=== handleSaveRow START ===');
     console.log('Input row data:', newRow);
-    console.log('Has receiptFile?', !!newRow.receiptFile);
-    console.log('receiptFile:', newRow.receiptFile);
+    console.log('Has invoiceFile?', !!newRow.invoiceFile);
+    console.log('invoiceFile:', newRow.invoiceFile);
 
     const useMockData = import.meta.env.VITE_USE_MOCK_AUTH === 'true';
 
@@ -218,43 +201,43 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
 
     try {
       // 日付をYYYY-MM-DD形式に変換
-      console.log('Raw date value:', newRow.date);
-      console.log('Date type:', typeof newRow.date);
-      console.log('Is Date object:', newRow.date instanceof Date);
+      console.log('Raw date value:', newRow.invoice_date);
+      console.log('Date type:', typeof newRow.invoice_date);
+      console.log('Is Date object:', newRow.invoice_date instanceof Date);
 
       let dateValue = '';
 
       // 日付の検証と変換
-      if (newRow.date === null || newRow.date === undefined || newRow.date === '') {
+      if (newRow.invoice_date === null || newRow.invoice_date === undefined || newRow.invoice_date === '') {
         const errorMsg = '日付を入力してください';
         setError(errorMsg);
         throw new Error(errorMsg);
       }
 
-      if (newRow.date instanceof Date) {
+      if (newRow.invoice_date instanceof Date) {
         // Dateオブジェクトの場合
-        if (isNaN(newRow.date.getTime())) {
+        if (isNaN(newRow.invoice_date.getTime())) {
           throw new Error('無効な日付です');
         }
-        dateValue = formatDateToLocalString(newRow.date);
-      } else if (typeof newRow.date === 'string') {
+        dateValue = formatDateToLocalString(newRow.invoice_date);
+      } else if (typeof newRow.invoice_date === 'string') {
         // 文字列の場合
-        if (newRow.date.includes('T')) {
+        if (newRow.invoice_date.includes('T')) {
           // ISO形式 "2025-11-09T00:00:00.000Z"
-          dateValue = newRow.date.split('T')[0];
-        } else if (newRow.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          dateValue = newRow.invoice_date.split('T')[0];
+        } else if (newRow.invoice_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
           // 既にYYYY-MM-DD形式
-          dateValue = newRow.date;
+          dateValue = newRow.invoice_date;
         } else {
           // その他の形式を試す
-          const parsedDate = new Date(newRow.date);
+          const parsedDate = new Date(newRow.invoice_date);
           if (!isNaN(parsedDate.getTime())) {
             dateValue = formatDateToLocalString(parsedDate);
           }
         }
-      } else if (typeof newRow.date === 'number') {
+      } else if (typeof newRow.invoice_date === 'number') {
         // タイムスタンプの場合
-        const parsedDate = new Date(newRow.date);
+        const parsedDate = new Date(newRow.invoice_date);
         if (!isNaN(parsedDate.getTime())) {
           dateValue = formatDateToLocalString(parsedDate);
         }
@@ -268,133 +251,101 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
         throw new Error(errorMsg);
       }
 
-      // レシート画像がある場合はFormDataを使用、ない場合はJSONで送信
+      // 請求書画像がある場合はFormDataを使用、ない場合はJSONで送信
       let response;
-      const hasReceiptFile = !!newRow.receiptFile;
+      const hasInvoiceFile = !!newRow.invoiceFile;
 
-      if (hasReceiptFile) {
-        // FormDataで送信（レシート画像あり）
+      if (hasInvoiceFile) {
+        // FormDataで送信（請求書画像あり）
         const formData = new FormData();
-        formData.append('date', dateValue);
-        formData.append('category', newRow.category || '');
+        formData.append('invoice_date', dateValue);
         formData.append('description', newRow.description || '');
-        formData.append('receipt_status', newRow.receipt_status || '未添付');
-        formData.append('payee', newRow.payee || '');
+        formData.append('status', newRow.status || '未払い');
+        formData.append('client', newRow.client || '');
 
-        // 入金額の検証
-        if (newRow.deposit_from_star != null && newRow.deposit_from_star !== '') {
-          const depositValue = Number(newRow.deposit_from_star);
-          if (isNaN(depositValue)) {
-            throw new Error('入金額は数値で入力してください');
+        // 請求額の検証
+        if (newRow.invoice_amount != null && newRow.invoice_amount !== '') {
+          const invoiceAmountValue = Number(newRow.invoice_amount);
+          if (isNaN(invoiceAmountValue)) {
+            throw new Error('請求額は数値で入力してください');
           }
-          if (depositValue > 99999999) {
-            throw new Error('入金額は99,999,999円以下で入力してください');
+          if (invoiceAmountValue > 99999999) {
+            throw new Error('請求額は99,999,999円以下で入力してください');
           }
-          if (depositValue < 0) {
-            throw new Error('入金額は0以上で入力してください');
+          if (invoiceAmountValue < 0) {
+            throw new Error('請求額は0以上で入力してください');
           }
-          formData.append('deposit_from_star', depositValue.toString());
+          formData.append('invoice_amount', invoiceAmountValue.toString());
         }
 
-        // 支払額の検証
-        if (newRow.payment != null && newRow.payment !== '') {
-          const paymentValue = Number(newRow.payment);
-          if (isNaN(paymentValue)) {
-            throw new Error('支払額は数値で入力してください');
-          }
-          if (paymentValue > 99999999) {
-            throw new Error('支払額は99,999,999円以下で入力してください');
-          }
-          if (paymentValue < 0) {
-            throw new Error('支払額は0以上で入力してください');
-          }
-          formData.append('payment', paymentValue.toString());
-        }
-
-        // レシート画像を追加
+        // 請求書画像を追加
         // BlobをFileに変換（必要に応じて）
-        const receiptFile = newRow.receiptFile instanceof Blob && !(newRow.receiptFile instanceof File)
-          ? new File([newRow.receiptFile], newRow.receiptFile.name || 'receipt.jpg', { type: newRow.receiptFile.type })
-          : newRow.receiptFile;
-        formData.append('receipt', receiptFile);
+        const invoiceFile = newRow.invoiceFile instanceof Blob && !(newRow.invoiceFile instanceof File)
+          ? new File([newRow.invoiceFile], newRow.invoiceFile.name || 'invoice.jpg', { type: newRow.invoiceFile.type })
+          : newRow.invoiceFile;
+        formData.append('invoice', invoiceFile);
 
-        console.log('Sending with receipt file');
+        console.log('Sending with invoice file');
 
         if (newRow.isNew) {
-          console.log('Creating new transaction with receipt...');
-          response = await api.post('/transactions', formData, {
+          console.log('Creating new invoice with file...');
+          response = await api.post('/invoices', formData, {
             headers: {
               'Content-Type': 'multipart/form-data',
             },
           });
         } else {
-          console.log('Updating transaction ID with receipt:', newRow.id);
-          response = await api.put(`/transactions/${newRow.id}`, formData, {
+          console.log('Updating invoice ID with file:', newRow.id);
+          response = await api.put(`/invoices/${newRow.id}`, formData, {
             headers: {
               'Content-Type': 'multipart/form-data',
             },
           });
         }
       } else {
-        // JSONで送信（レシート画像なし）
-        const transactionData: any = {
-          date: dateValue,
-          category: newRow.category || '',
+        // JSONで送信（請求書画像なし）
+        const invoiceData: any = {
+          invoice_date: dateValue,
           description: newRow.description || '',
-          receipt_status: newRow.receipt_status || '未添付',
-          payee: newRow.payee || '',
+          status: newRow.status || '未払い',
+          client: newRow.client || '',
         };
 
-        // 入金額の検証
-        if (newRow.deposit_from_star != null && newRow.deposit_from_star !== '') {
-          const depositValue = Number(newRow.deposit_from_star);
-          if (isNaN(depositValue)) {
-            throw new Error('入金額は数値で入力してください');
+        // 請求額の検証
+        if (newRow.invoice_amount != null && newRow.invoice_amount !== '') {
+          const invoiceAmountValue = Number(newRow.invoice_amount);
+          if (isNaN(invoiceAmountValue)) {
+            throw new Error('請求額は数値で入力してください');
           }
-          if (depositValue > 99999999) {
-            throw new Error('入金額は99,999,999円以下で入力してください');
+          if (invoiceAmountValue > 99999999) {
+            throw new Error('請求額は99,999,999円以下で入力してください');
           }
-          if (depositValue < 0) {
-            throw new Error('入金額は0以上で入力してください');
+          if (invoiceAmountValue < 0) {
+            throw new Error('請求額は0以上で入力してください');
           }
-          transactionData.deposit_from_star = depositValue;
+          invoiceData.invoice_amount = invoiceAmountValue;
         }
 
-        // 支払額の検証
-        if (newRow.payment != null && newRow.payment !== '') {
-          const paymentValue = Number(newRow.payment);
-          if (isNaN(paymentValue)) {
-            throw new Error('支払額は数値で入力してください');
-          }
-          if (paymentValue > 99999999) {
-            throw new Error('支払額は99,999,999円以下で入力してください');
-          }
-          if (paymentValue < 0) {
-            throw new Error('支払額は0以上で入力してください');
-          }
-          transactionData.payment = paymentValue;
-        }
-
-        console.log('Transaction data to send:', JSON.stringify(transactionData, null, 2));
+        console.log('Invoice data to send:', JSON.stringify(invoiceData, null, 2));
 
         if (newRow.isNew) {
-          console.log('Creating new transaction...');
-          response = await api.post('/transactions', transactionData);
+          console.log('Creating new invoice...');
+          response = await api.post('/invoices', invoiceData);
         } else {
-          console.log('Updating transaction ID:', newRow.id);
-          response = await api.put(`/transactions/${newRow.id}`, transactionData);
+          console.log('Updating invoice ID:', newRow.id);
+          response = await api.put(`/invoices/${newRow.id}`, invoiceData);
         }
       }
 
       console.log('API Response:', JSON.stringify(response.data, null, 2));
 
       // データを再取得して、更新された行を取得
-      console.log('Fetching updated transactions...');
-      const updatedTransactions = await fetchTransactions();
+      console.log('Fetching updated invoices...');
+      const updatedInvoices = await fetchInvoices();
 
       // 保存/更新した行をIDで検索
       const savedRowId = response.data.id;
-      const updatedRow = updatedTransactions.find((t: any) => t.id === savedRowId);
+      const updatedRow = updatedInvoices.find((t: any) => t.id === savedRowId);
 
       console.log('=== handleSaveRow SUCCESS ===');
       console.log('Updated row from fetch:', JSON.stringify(updatedRow, null, 2));
@@ -407,7 +358,7 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
         };
       }
 
-      // 再取得したデータを返す（balance計算後の正しいデータ）
+      // 再取得したデータを返す
       const resultRow = {
         ...updatedRow,
         isNew: false,
@@ -437,7 +388,7 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
 
       console.log('New rows:', newRows.length);
       console.log('Dirty rows:', dirtyRows.length);
-      console.log('Dirty rows data:', dirtyRows.map(r => ({ id: r.id, hasReceiptFile: !!r.receiptFile })));
+      console.log('Dirty rows data:', dirtyRows.map(r => ({ id: r.id, hasInvoiceFile: !!r.invoiceFile })));
 
       if (newRows.length === 0 && dirtyRows.length === 0) {
         alert('保存するデータがありません');
@@ -451,7 +402,7 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
 
       // 全データを再取得して更新日を反映
       console.log('Refreshing all data...');
-      const refreshedData = await fetchTransactions();
+      const refreshedData = await fetchInvoices();
       setAllRows(refreshedData);
 
       console.log('=== handleSaveAll SUCCESS ===');
@@ -472,7 +423,7 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
   };
 
   const handleReceiptUpload = (rowId: GridRowId) => async (file: File, ocrData: any) => {
-    console.log('Receipt uploaded for row:', rowId);
+    console.log('Invoice file uploaded for row:', rowId);
     console.log('OCR data:', ocrData);
     console.log('File to upload:', file);
     console.log('File type:', file.type);
@@ -483,24 +434,23 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
       const updatedRows = allRows.map((row: any) => {
         if (row.id === rowId) {
           const updatedRow = { ...row };
-          updatedRow.receiptFile = file;
+          updatedRow.invoiceFile = file;
           if (ocrData.date) {
             try {
               const parsedDate = new Date(ocrData.date);
               if (!isNaN(parsedDate.getTime())) {
-                updatedRow.date = parsedDate;
+                updatedRow.invoice_date = parsedDate;
               }
             } catch (e) {
               console.error('Date parsing error:', e);
             }
           }
           if (ocrData.amount) {
-            updatedRow.payment = ocrData.amount;
+            updatedRow.invoice_amount = ocrData.amount;
           }
           if (ocrData.payee) {
-            updatedRow.payee = ocrData.payee;
+            updatedRow.client = ocrData.payee;
           }
-          updatedRow.receipt_status = '領収書配置済';
           if (!row.isNew) {
             updatedRow.isDirty = true;
           }
@@ -523,7 +473,7 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
       const updatedRow = { ...row };
 
       // OCRで読み取った日付を設定
-      let dateValue = row.date;
+      let dateValue = row.invoice_date;
       if (ocrData.date) {
         try {
           const parsedDate = new Date(ocrData.date);
@@ -535,7 +485,7 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
         }
       }
 
-      // 新規行の場合は、最低限の情報で行を作成してからレシートをアップロード
+      // 新規行の場合は、最低限の情報で行を作成してから請求書をアップロード
       if (row.isNew) {
         // 日付がない場合は今日の日付を使用
         if (!dateValue) {
@@ -544,79 +494,73 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
 
         const formattedDate = formatDateToLocalString(dateValue);
         const formData = new FormData();
-        formData.append('date', formattedDate);
-        formData.append('category', ocrData.category || row.category || '');
+        formData.append('invoice_date', formattedDate);
         formData.append('description', row.description || '');
-        formData.append('receipt_status', '領収書配置済');
-        formData.append('payee', ocrData.payee || row.payee || '');
+        formData.append('status', row.status || '未払い');
+        formData.append('client', ocrData.payee || row.client || '');
 
-        if (ocrData.amount || row.payment) {
-          formData.append('payment', String(ocrData.amount || row.payment));
+        if (ocrData.amount || row.invoice_amount) {
+          formData.append('invoice_amount', String(ocrData.amount || row.invoice_amount));
         }
 
-        // レシート画像を追加
-        const receiptFile = file instanceof Blob && !(file instanceof File)
-          ? new File([file], file.name || 'receipt.jpg', { type: file.type })
+        // 請求書画像を追加
+        const invoiceFile = file instanceof Blob && !(file instanceof File)
+          ? new File([file], file.name || 'invoice.jpg', { type: file.type })
           : file;
-        formData.append('receipt', receiptFile);
+        formData.append('invoice_file', invoiceFile);
 
-        console.log('Creating new transaction with receipt...');
-        const response = await api.post('/transactions', formData, {
+        console.log('Creating new invoice with file...');
+        const response = await api.post('/invoices', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
 
-        console.log('Transaction created:', response.data);
+        console.log('Invoice created:', response.data);
 
         // データを再取得
-        await fetchTransactions();
+        await fetchInvoices();
       } else {
-        // 既存行の場合は、レシートをアップロードして更新
+        // 既存行の場合は、請求書をアップロードして更新
         const formattedDate = dateValue ? formatDateToLocalString(new Date(dateValue)) : formatDateToLocalString(new Date());
         const formData = new FormData();
-        formData.append('date', formattedDate);
-        formData.append('category', row.category || '');
+        formData.append('invoice_date', formattedDate);
         formData.append('description', row.description || '');
-        formData.append('receipt_status', '領収書配置済');
-        formData.append('payee', ocrData.payee || row.payee || '');
-
-        if (row.deposit_from_star != null && row.deposit_from_star !== '') {
-          formData.append('deposit_from_star', String(row.deposit_from_star));
-        }
+        formData.append('status', row.status || '未払い');
+        formData.append('client', ocrData.payee || row.client || '');
 
         if (ocrData.amount != null) {
-          formData.append('payment', String(ocrData.amount));
-        } else if (row.payment != null && row.payment !== '') {
-          formData.append('payment', String(row.payment));
+          formData.append('invoice_amount', String(ocrData.amount));
+        } else if (row.invoice_amount != null && row.invoice_amount !== '') {
+          formData.append('invoice_amount', String(row.invoice_amount));
         }
 
-        // レシート画像を追加
-        const receiptFile = file instanceof Blob && !(file instanceof File)
-          ? new File([file], file.name || 'receipt.jpg', { type: file.type })
+        // 請求書画像を追加
+        const invoiceFile = file instanceof Blob && !(file instanceof File)
+          ? new File([file], file.name || 'invoice.jpg', { type: file.type })
           : file;
-        formData.append('receipt', receiptFile);
+        formData.append('invoice_file', invoiceFile);
 
-        console.log('Updating transaction with receipt:', rowId);
-        const response = await api.put(`/transactions/${rowId}`, formData, {
+        console.log('Updating invoice with file:', rowId);
+        const response = await api.put(`/invoices/${rowId}`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
 
-        console.log('Transaction updated:', response.data);
+        console.log('Invoice updated:', response.data);
 
         // データを再取得
-        await fetchTransactions();
+        await fetchInvoices();
       }
     } catch (err: any) {
-      console.error('Receipt upload error:', err);
-      setError(err.response?.data?.error || 'レシートのアップロードに失敗しました');
+      console.error('Invoice file upload error:', err);
+      setError(err.response?.data?.error || '請求書のアップロードに失敗しました');
     }
   };
 
   const handleReceiptDelete = (rowId: GridRowId) => async () => {
-    console.log('Receipt deleted for row:', rowId);
+    console.log('Invoice file deleted for row:', rowId);
 
     const useMockData = import.meta.env.VITE_USE_MOCK_AUTH === 'true';
     if (useMockData) {
@@ -624,9 +568,8 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
       const updatedRows = allRows.map((row: any) => {
         if (row.id === rowId) {
           const updatedRow = { ...row };
-          delete updatedRow.receiptFile;
-          delete updatedRow.receipt_url;
-          updatedRow.receipt_status = '未添付';
+          delete updatedRow.invoiceFile;
+          delete updatedRow.invoice_file_url;
           if (!row.isNew) {
             updatedRow.isDirty = true;
           }
@@ -650,9 +593,8 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
         const updatedRows = allRows.map((r: any) => {
           if (r.id === rowId) {
             const updatedRow = { ...r };
-            delete updatedRow.receiptFile;
-            delete updatedRow.receipt_url;
-            updatedRow.receipt_status = '未添付';
+            delete updatedRow.invoiceFile;
+            delete updatedRow.invoice_file_url;
             return updatedRow;
           }
           return r;
@@ -662,34 +604,30 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
       }
 
       // 既存行の場合は、バックエンドに削除リクエストを送信
-      const dateValue = row.date ? new Date(row.date) : new Date();
+      const dateValue = row.invoice_date ? new Date(row.invoice_date) : new Date();
       const formattedDate = formatDateToLocalString(dateValue);
 
-      const transactionData: any = {
-        date: formattedDate,
-        category: row.category || '',
+      const invoiceData: any = {
+        invoice_date: formattedDate,
         description: row.description || '',
-        receipt_status: '未添付',
-        payee: row.payee || '',
+        status: row.status || '未払い',
+        client: row.client || '',
+        remove_invoice_file: 'true',
       };
 
-      if (row.deposit_from_star != null && row.deposit_from_star !== '') {
-        transactionData.deposit_from_star = Number(row.deposit_from_star);
+      if (row.invoice_amount != null && row.invoice_amount !== '') {
+        invoiceData.invoice_amount = Number(row.invoice_amount);
       }
 
-      if (row.payment != null && row.payment !== '') {
-        transactionData.payment = Number(row.payment);
-      }
-
-      console.log('Deleting receipt for transaction:', rowId);
-      const response = await api.put(`/transactions/${rowId}`, transactionData);
-      console.log('Receipt deleted:', response.data);
+      console.log('Deleting invoice file for invoice:', rowId);
+      const response = await api.put(`/invoices/${rowId}`, invoiceData);
+      console.log('Invoice file deleted:', response.data);
 
       // データを再取得
-      await fetchTransactions();
+      await fetchInvoices();
     } catch (err: any) {
-      console.error('Receipt delete error:', err);
-      setError(err.response?.data?.error || 'レシートの削除に失敗しました');
+      console.error('Invoice file delete error:', err);
+      setError(err.response?.data?.error || '請求書の削除に失敗しました');
     }
   };
 
@@ -709,8 +647,8 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
     }
 
     try {
-      await api.delete(`/transactions/${id}`);
-      await fetchTransactions();
+      await api.delete(`/invoices/${id}`);
+      await fetchInvoices();
     } catch (err: any) {
       setError('削除に失敗しました');
     }
@@ -737,16 +675,16 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
       hide: user?.role !== 'admin' && user?.role !== 'superadmin',
     },
     {
-      field: 'date',
-      headerName: '日付',
+      field: 'invoice_date',
+      headerName: '請求日付',
       width: isMobile ? 90 : 110,
       minWidth: 90,
       editable: true,
       type: 'date',
     },
     {
-      field: 'deposit_from_star',
-      headerName: '入金',
+      field: 'invoice_amount',
+      headerName: '請求額',
       width: isMobile ? 70 : 90,
       minWidth: 70,
       editable: true,
@@ -756,32 +694,11 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
       },
     },
     {
-      field: 'payment',
-      headerName: '支払い',
-      width: isMobile ? 70 : 90,
-      minWidth: 70,
-      editable: true,
-      valueFormatter: (params: any) => {
-        if (params.value == null || params.value === '') return '';
-        return `¥${Number(params.value).toLocaleString()}`;
-      },
-    },
-    {
-      field: 'payee',
-      headerName: '支払先',
+      field: 'client',
+      headerName: '取引先',
       width: isMobile ? 120 : 200,
       minWidth: 100,
       editable: true,
-    },
-    {
-      field: 'category',
-      headerName: '費目',
-      width: isMobile ? 70 : 90,
-      minWidth: 70,
-      editable: true,
-      type: 'singleSelect',
-      valueOptions: categories,
-      hide: isMobile,
     },
     {
       field: 'description',
@@ -792,43 +709,31 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
       editable: true,
     },
     {
-      field: 'receipt_status',
-      headerName: '領収書',
+      field: 'status',
+      headerName: 'ステータス',
       width: isMobile ? 80 : 160,
       minWidth: 80,
       editable: true,
       type: 'singleSelect',
-      valueOptions: receiptStatuses,
+      valueOptions: invoiceStatuses,
       hide: isMobile,
     },
     {
-      field: 'receipt',
-      headerName: 'レシート',
+      field: 'invoice',
+      headerName: '請求書',
       width: 140,
       minWidth: 120,
       editable: false,
       sortable: false,
       renderCell: (params) => (
         <ReceiptUpload
-          receiptUrl={params.row.receipt_url}
+          receiptUrl={params.row.invoice_file_url}
           isPdf={params.row.is_pdf}
           onReceiptUpload={handleReceiptUpload(params.id)}
           onReceiptDelete={handleReceiptDelete(params.id)}
           disabled={false}
         />
       ),
-    },
-    {
-      field: 'balance',
-      headerName: '残金',
-      width: isMobile ? 70 : 90,
-      minWidth: 70,
-      editable: false,
-      type: 'number',
-      valueFormatter: (params: any) => {
-        if (params.value == null || params.value === '') return '';
-        return `¥${Number(params.value).toLocaleString()}`;
-      },
     },
     ...((user?.role === 'admin' || user?.role === 'superadmin') ? [{
       field: 'updated_at',
@@ -895,20 +800,8 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
               component="div"
               sx={{ flexGrow: 1 }}
             >
-              {isMobile ? 'Star R.G 89' : 'Star R.G 89 経費清算システム'}
+              {isMobile ? 'Star R.G 89' : 'Star R.G 89 請求書管理システム'}
             </Typography>
-            {!isMobile && (
-              <Typography
-                variant="body2"
-                sx={{
-                  color: 'white',
-                  fontSize: '0.85rem',
-                  mr: 8,
-                }}
-              >
-                ※ 領収書は登録番号（Tからはじまる13桁）の記載があるものを添付してください
-              </Typography>
-            )}
             {!isMobile && (
               <Typography variant="body1" sx={{ mr: 2 }}>
                 {user?.name} さん
@@ -978,7 +871,7 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
               size="small"
               fullWidth={isMobile}
             >
-              {isMobile ? '+ 追加' : '行を追加'}
+              {isMobile ? '+ 追加' : '新しい請求書を追加'}
             </Button>
             <Button
               variant="outlined"
@@ -1031,10 +924,9 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
             apiRef={apiRef}
             onCellClick={(params, event) => {
               // 編集可能なセルをクリックした場合、編集モードに切り替える
-              const isEditable = params.field !== 'balance' &&
-                                 params.field !== 'updated_at' &&
+              const isEditable = params.field !== 'updated_at' &&
                                  params.field !== 'user_name' &&
-                                 params.field !== 'receipt' &&
+                                 params.field !== 'invoice' &&
                                  params.field !== 'actions';
               if (isEditable && params.isEditable) {
                 apiRef.current.startCellEditMode({ id: params.id, field: params.field });
@@ -1048,9 +940,9 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
                 row.id === newRow.id ? {
                   ...row,
                   ...newRow,
-                  // レシート関連の情報を保持（DataGridの編集で失われないように）
-                  receiptFile: row.receiptFile,
-                  receipt_url: row.receipt_url,
+                  // 請求書関連の情報を保持（DataGridの編集で失われないように）
+                  invoiceFile: row.invoiceFile,
+                  invoice_file_url: row.invoice_file_url,
                   is_pdf: row.is_pdf,
                   isDirty: !newRow.isNew
                 } : row
@@ -1094,7 +986,7 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
               }
               return '';
             }}
-            isCellEditable={(params) => params.field !== 'balance' && params.field !== 'updated_at' && params.field !== 'user_name' && params.field !== 'receipt'}
+            isCellEditable={(params) => params.field !== 'updated_at' && params.field !== 'user_name' && params.field !== 'invoice'}
             disableRowSelectionOnClick
             density={isMobile ? 'compact' : 'standard'}
             pageSizeOptions={[5, 10, 25, 50, 100]}
@@ -1131,4 +1023,4 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
   );
 };
 
-export default TransactionTable;
+export default InvoiceTable;

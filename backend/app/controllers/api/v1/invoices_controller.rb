@@ -1,142 +1,142 @@
 module Api
   module V1
-    class TransactionsController < BaseController
+    class InvoicesController < BaseController
       def index
-        transactions = if current_user.superadmin?
-          # superadminは全てのトランザクションを閲覧可能
-          Transaction.includes(:user).all
+        invoices = if current_user.superadmin?
+          # superadminは全てのインボイスを閲覧可能
+          Invoice.includes(:user).all
         elsif current_user.role == 'admin'
-          # adminはスーパー管理者とokiユーザー以外のトランザクションを閲覧可能
-          Transaction.includes(:user)
+          # adminはスーパー管理者とokiユーザー以外のインボイスを閲覧可能
+          Invoice.includes(:user)
                     .joins(:user)
                     .where.not(users: { role: 'superadmin' })
                     .where.not(users: { user_id: 'oki' })
         else
-          # 一般ユーザーは自分のトランザクションのみ閲覧可能
-          current_user.transactions
+          # 一般ユーザーは自分のインボイスのみ閲覧可能
+          current_user.invoices
         end
 
-        render json: transactions.map { |t| transaction_json(t) }
+        render json: invoices.map { |i| invoice_json(i) }
       end
       
       def show
-        transaction = find_transaction
-        render json: transaction_json(transaction)
+        invoice = find_invoice
+        render json: invoice_json(invoice)
       end
-      
-      def create
-        transaction = current_user.transactions.new(transaction_params)
 
-        # レシート画像が添付されている場合、OCR処理を実行
-        if params[:receipt].present?
-          process_receipt_ocr(transaction)
+      def create
+        invoice = current_user.invoices.new(invoice_params)
+
+        # インボイスファイルが添付されている場合、OCR処理を実行
+        if params[:invoice_file].present?
+          process_invoice_file_ocr(invoice)
         end
 
-        if transaction.save
-          render json: transaction_json(transaction), status: :created
+        if invoice.save
+          render json: invoice_json(invoice), status: :created
         else
-          render json: { errors: transaction.errors.full_messages }, status: :unprocessable_entity
+          render json: { errors: invoice.errors.full_messages }, status: :unprocessable_entity
         end
       end
       
       def update
-        transaction = find_transaction
+        invoice = find_invoice
 
-        Rails.logger.info "Updating transaction with params: #{transaction_params.inspect}"
+        Rails.logger.info "Updating invoice with params: #{invoice_params.inspect}"
 
-        # レシート画像が新たに添付された場合、OCR処理を実行
-        if params[:receipt].present?
-          process_receipt_ocr(transaction)
+        # インボイスファイルの削除リクエストがある場合は削除
+        if params[:remove_invoice_file] == 'true' && invoice.invoice_file.attached?
+          Rails.logger.info "Purging invoice file for invoice #{invoice.id}"
+          invoice.invoice_file.purge
         end
 
-        # レシートステータスが「未添付」に変更され、既存のレシートがある場合は削除
-        if params[:receipt_status] == '未添付' && transaction.receipt.attached?
-          Rails.logger.info "Purging receipt for transaction #{transaction.id}"
-          transaction.receipt.purge
+        # インボイスファイルが新たに添付された場合、OCR処理を実行
+        if params[:invoice_file].present?
+          process_invoice_file_ocr(invoice)
         end
 
-        if transaction.update(transaction_params)
-          render json: transaction_json(transaction)
+        if invoice.update(invoice_params)
+          render json: invoice_json(invoice)
         else
-          render json: { errors: transaction.errors.full_messages }, status: :unprocessable_entity
+          render json: { errors: invoice.errors.full_messages }, status: :unprocessable_entity
         end
       end
       
       def destroy
-        transaction = find_transaction
-        transaction.destroy
+        invoice = find_invoice
+        invoice.destroy
         head :no_content
       end
 
-      # レシート画像からOCRでデータを抽出
-      def extract_receipt_data
-        unless params[:receipt].present?
-          return render json: { error: 'レシート画像が必要です' }, status: :unprocessable_entity
+      # インボイスファイルからOCRでデータを抽出
+      def extract_invoice_data
+        unless params[:invoice_file].present?
+          return render json: { error: 'インボイスファイルが必要です' }, status: :unprocessable_entity
         end
 
         # OCR処理（アップロードされたファイルを直接使用）
         ocr_service = ReceiptOcrService.new
-        result = ocr_service.extract_from_uploaded_file(params[:receipt])
+        result = ocr_service.extract_from_uploaded_file(params[:invoice_file])
 
         if result[:error]
           render json: { error: result[:error] }, status: :unprocessable_entity
         else
           render json: {
-            date: result[:date],
-            amount: result[:amount],
-            payee: result[:payee],
+            invoice_date: result[:date],
+            invoice_amount: result[:amount],
+            client: result[:payee],
             raw_text: result[:raw_text]
           }
         end
       end
 
-      # 管理者がレシートディレクトリを一括閲覧
-      def receipt_directory
+      # 管理者がインボイスディレクトリを一括閲覧
+      def invoice_directory
         unless current_user.superadmin?
           return render json: { error: 'スーパー管理者のみアクセス可能です' }, status: :forbidden
         end
 
-        # すべてのトランザクションでレシート添付があるものを取得
-        transactions_with_receipts = Transaction.includes(:user, receipt_attachment: :blob)
+        # すべてのインボイスでファイル添付があるものを取得
+        invoices_with_files = Invoice.includes(:user, invoice_file_attachment: :blob)
                                                .where.not(active_storage_attachments: { id: nil })
-                                               .order(date: :desc)
+                                               .order(invoice_date: :desc)
 
         # ツリー構造でデータを整理
-        receipt_tree = {}
+        invoice_tree = {}
 
-        transactions_with_receipts.each do |transaction|
-          next unless transaction.receipt.attached? && transaction.date
+        invoices_with_files.each do |invoice|
+          next unless invoice.invoice_file.attached? && invoice.invoice_date
 
-          year = transaction.date.year.to_s
-          month = transaction.date.month.to_s.rjust(2, '0')
-          day = transaction.date.day.to_s.rjust(2, '0')
+          year = invoice.invoice_date.year.to_s
+          month = invoice.invoice_date.month.to_s.rjust(2, '0')
+          day = invoice.invoice_date.day.to_s.rjust(2, '0')
 
           # ツリー構造を作成
-          receipt_tree[year] ||= {}
-          receipt_tree[year][month] ||= {}
-          receipt_tree[year][month][day] ||= []
+          invoice_tree[year] ||= {}
+          invoice_tree[year][month] ||= {}
+          invoice_tree[year][month][day] ||= []
 
-          # レシート情報を追加
-          receipt_tree[year][month][day] << {
-            id: transaction.id,
-            user_id: transaction.user_id,
-            user_name: transaction.user.name,
-            date: transaction.date.iso8601,
-            amount: transaction.payment&.to_f,
-            payee: transaction.payee,
-            receipt_url: transaction.receipt.url,
-            is_pdf: transaction.receipt.content_type == 'application/pdf'
+          # インボイス情報を追加（フロントエンドのReceiptItemインターフェースに合わせる）
+          invoice_tree[year][month][day] << {
+            id: invoice.id,
+            user_id: invoice.user_id,
+            user_name: invoice.user.name,
+            date: invoice.invoice_date.iso8601,
+            amount: invoice.invoice_amount&.to_f,
+            payee: invoice.client,
+            receipt_url: invoice.invoice_file.url,
+            is_pdf: invoice.invoice_file.content_type == 'application/pdf'
           }
         end
 
-        render json: { receipt_tree: receipt_tree }
+        render json: { invoice_tree: invoice_tree }
       end
 
       private
 
-      # レシート画像のOCR処理を実行してフィールドに値を設定
-      def process_receipt_ocr(transaction)
-        uploaded_file = params[:receipt]
+      # インボイスファイルのOCR処理を実行してフィールドに値を設定
+      def process_invoice_file_ocr(invoice)
+        uploaded_file = params[:invoice_file]
         return unless uploaded_file
 
         # ファイルタイプを確認
@@ -144,22 +144,19 @@ module Api
         is_pdf = content_type == 'application/pdf'
 
         # まず画像/PDFを一時的に添付してOCR処理
-        transaction.receipt.attach(uploaded_file)
+        invoice.invoice_file.attach(uploaded_file)
 
         # OCR処理（失敗しても続行）
         begin
           ocr_service = ReceiptOcrService.new
-          result = ocr_service.extract_from_attachment(transaction.receipt)
+          result = ocr_service.extract_from_attachment(invoice.invoice_file)
 
           unless result[:error]
             # OCRで読み取った値をフィールドに設定（既存の値がない場合のみ）
             ocr_date = result[:date] ? Date.parse(result[:date]) : nil
-            transaction.date ||= ocr_date if ocr_date
-            transaction.payment ||= result[:amount] if result[:amount]
-            transaction.payee ||= result[:payee] if result[:payee]
-
-            # レシート添付済みとして記録
-            transaction.receipt_status = '領収書配置済'
+            invoice.invoice_date ||= ocr_date if ocr_date
+            invoice.invoice_amount ||= result[:amount] if result[:amount]
+            invoice.client ||= result[:payee] if result[:payee]
           end
         rescue StandardError => e
           Rails.logger.error "OCR処理エラー（圧縮は続行）: #{e.message}"
@@ -168,24 +165,24 @@ module Api
         end
 
         # 日付が確定したので、日付ベースのキーで再アップロード（OCRの成否に関わらず実行）
-        if transaction.date
+        if invoice.invoice_date
             # 既存の添付を削除
-            transaction.receipt.purge
+            invoice.invoice_file.purge
 
             if is_pdf
               # PDFの場合は圧縮して保存
               compressed_file = compress_pdf(uploaded_file)
-              date_path = generate_date_based_key(transaction.date, 'receipt.pdf', transaction.user_id)
+              date_path = generate_date_based_key(invoice.invoice_date, 'invoice.pdf', invoice.user_id)
 
               # カスタムキーでアップロード
               blob = ActiveStorage::Blob.create_and_upload!(
                 io: compressed_file,
-                filename: 'receipt.pdf',
+                filename: 'invoice.pdf',
                 content_type: 'application/pdf',
                 key: date_path
               )
 
-              transaction.receipt.attach(blob)
+              invoice.invoice_file.attach(blob)
 
               # 圧縮で作成した一時ファイルをクリーンアップ（元のファイルと異なる場合のみ）
               if compressed_file != uploaded_file.tempfile
@@ -194,29 +191,29 @@ module Api
               end
             else
               # 画像の場合は自動トリミング→圧縮してJPEGで保存
-              trimmed_file = trim_receipt_image(uploaded_file)
+              trimmed_file = trim_invoice_image(uploaded_file)
               compressed_file = compress_image_from_tempfile(trimmed_file)
 
               # 日付ベースのキーを生成（拡張子は.jpgに固定）
-              date_path = generate_date_based_key(transaction.date, 'receipt.jpg', transaction.user_id)
+              date_path = generate_date_based_key(invoice.invoice_date, 'invoice.jpg', invoice.user_id)
 
               # カスタムキーで再アップロード
               blob = ActiveStorage::Blob.create_and_upload!(
                 io: compressed_file,
-                filename: 'receipt.jpg',
+                filename: 'invoice.jpg',
                 content_type: 'image/jpeg',
                 key: date_path
               )
 
-              transaction.receipt.attach(blob)
+              invoice.invoice_file.attach(blob)
               compressed_file.close
               compressed_file.unlink
             end
           end
       end
 
-      # レシート画像を自動トリミング
-      def trim_receipt_image(uploaded_file)
+      # インボイス画像を自動トリミング
+      def trim_invoice_image(uploaded_file)
         trimming_service = ReceiptTrimmingService.new
         trimming_service.trim_receipt(uploaded_file)
       end
@@ -396,29 +393,29 @@ module Api
         extension = File.extname(filename)
 
         # ファイル名にユーザーIDを含める
-        "receipts/#{year}/#{month}/#{day}/user_#{user_id}_#{random_key}#{extension}"
+        "invoices/#{year}/#{month}/#{day}/user_#{user_id}_#{random_key}#{extension}"
       end
 
-      def find_transaction
+      def find_invoice
         if current_user.superadmin?
-          # superadminは全てのトランザクションにアクセス可能
-          Transaction.find(params[:id])
+          # superadminは全てのインボイスにアクセス可能
+          Invoice.find(params[:id])
         elsif current_user.role == 'admin'
-          # adminはスーパー管理者とokiユーザー以外のトランザクションにアクセス可能
-          transaction = Transaction.includes(:user).find(params[:id])
-          if transaction.user.role == 'superadmin' || transaction.user.user_id == 'oki'
+          # adminはスーパー管理者とokiユーザー以外のインボイスにアクセス可能
+          invoice = Invoice.includes(:user).find(params[:id])
+          if invoice.user.role == 'superadmin' || invoice.user.user_id == 'oki'
             raise ActiveRecord::RecordNotFound
           end
-          transaction
+          invoice
         else
-          # 一般ユーザーは自分のトランザクションのみアクセス可能
-          current_user.transactions.find(params[:id])
+          # 一般ユーザーは自分のインボイスのみアクセス可能
+          current_user.invoices.find(params[:id])
         end
       end
       
-      def transaction_params
+      def invoice_params
         # 許可するパラメータを明示的に指定
-        permitted = params.permit(:date, :deposit_from_star, :payment, :category, :description, :receipt_status, :payee, :receipt)
+        permitted = params.permit(:invoice_date, :invoice_amount, :client, :description, :status, :invoice_file)
 
         Rails.logger.info "Received params: #{params.inspect}"
         Rails.logger.info "Permitted params: #{permitted.inspect}"
@@ -426,27 +423,24 @@ module Api
         permitted
       end
       
-      def transaction_json(transaction)
-        receipt_url = transaction.receipt.attached? ? transaction.receipt.url : nil
-        is_pdf = transaction.receipt.attached? && transaction.receipt.content_type == 'application/pdf'
+      def invoice_json(invoice)
+        invoice_file_url = invoice.invoice_file.attached? ? invoice.invoice_file.url : nil
+        is_pdf = invoice.invoice_file.attached? && invoice.invoice_file.content_type == 'application/pdf'
 
         {
-          id: transaction.id,
-          date: transaction.date&.iso8601,
-          deposit_from_star: transaction.deposit_from_star&.to_f,
-          payment: transaction.payment&.to_f,
-          category: transaction.category,
-          description: transaction.description,
-          receipt_status: transaction.receipt_status,
-          payee: transaction.payee,
-          balance: transaction.balance&.to_f,
-          user_id: transaction.user_id,
-          user_name: transaction.user.name,
-          user_login_id: transaction.user.user_id,
-          receipt_url: receipt_url,
+          id: invoice.id,
+          invoice_date: invoice.invoice_date&.iso8601,
+          invoice_amount: invoice.invoice_amount&.to_f,
+          client: invoice.client,
+          description: invoice.description,
+          status: invoice.status,
+          user_id: invoice.user_id,
+          user_name: invoice.user.name,
+          user_login_id: invoice.user.user_id,
+          invoice_file_url: invoice_file_url,
           is_pdf: is_pdf,
-          updated_at: transaction.updated_at&.iso8601,
-          created_at: transaction.created_at&.iso8601
+          updated_at: invoice.updated_at&.iso8601,
+          created_at: invoice.created_at&.iso8601
         }
       end
     end

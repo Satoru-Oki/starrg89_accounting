@@ -60,7 +60,7 @@ const Login = () => {
             align="center"
             sx={{ mb: 3 }}
           >
-            経費清算システム
+            経理清算システム
           </Typography>
           <Typography
             component="h2"

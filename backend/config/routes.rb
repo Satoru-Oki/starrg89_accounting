@@ -16,6 +16,14 @@ Rails.application.routes.draw do
           get 'receipt_directory', to: 'transactions#receipt_directory'
         end
       end
+
+      # 請求書管理
+      resources :invoices do
+        collection do
+          post 'extract_invoice_data', to: 'invoices#extract_invoice_data'
+          get 'invoice_directory', to: 'invoices#invoice_directory'
+        end
+      end
     end
   end
 
