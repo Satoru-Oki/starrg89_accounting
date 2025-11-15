@@ -1029,6 +1029,8 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
             getRowId={(row) => row.id}
             editMode="cell"
             apiRef={apiRef}
+            sortingMode="client"
+            disableMultipleRowSelection
             onCellClick={(params, event) => {
               // 編集可能なセルをクリックした場合、編集モードに切り替える
               const isEditable = params.field !== 'balance' &&
