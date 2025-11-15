@@ -936,21 +936,36 @@ const InvoiceTable = ({ hideAppBar = false }: InvoiceTableProps = {}) => {
             }}
             processRowUpdate={(newRow) => {
               console.log('processRowUpdate called with:', newRow);
+
+              // 全角数字を半角数字に変換する関数
+              const toHalfWidth = (value: any): any => {
+                if (typeof value !== 'string') return value;
+                return value.replace(/[０-９]/g, (s) => {
+                  return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+                });
+              };
+
+              // 金額フィールドの全角数字を半角に変換
+              const processedRow = { ...newRow };
+              if (processedRow.invoice_amount) {
+                processedRow.invoice_amount = toHalfWidth(String(processedRow.invoice_amount));
+              }
+
               // ローカル状態のみ更新（APIには送信しない）
               // 既存行が編集された場合はisDirtyフラグを設定
               const updatedRows = allRows.map((row: any) =>
-                row.id === newRow.id ? {
+                row.id === processedRow.id ? {
                   ...row,
-                  ...newRow,
+                  ...processedRow,
                   // 請求書関連の情報を保持（DataGridの編集で失われないように）
                   invoiceFile: row.invoiceFile,
                   invoice_file_url: row.invoice_file_url,
                   is_pdf: row.is_pdf,
-                  isDirty: !newRow.isNew
+                  isDirty: !processedRow.isNew
                 } : row
               );
               setAllRows(updatedRows);
-              return newRow;
+              return processedRow;
             }}
             onProcessRowUpdateError={(error) => {
               console.error('Row update error:', error);
