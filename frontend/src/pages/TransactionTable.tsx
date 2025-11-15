@@ -1038,8 +1038,13 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
                                  params.field !== 'user_name' &&
                                  params.field !== 'receipt' &&
                                  params.field !== 'actions';
+
+              // セルが既に編集モードでない場合のみ編集モードを開始
               if (isEditable && params.isEditable) {
-                apiRef.current.startCellEditMode({ id: params.id, field: params.field });
+                const cellMode = apiRef.current.getCellMode(params.id, params.field);
+                if (cellMode === 'view') {
+                  apiRef.current.startCellEditMode({ id: params.id, field: params.field });
+                }
               }
             }}
             processRowUpdate={(newRow) => {
