@@ -4,16 +4,17 @@ module Api
       def index
         invoices = if current_user.superadmin?
           # superadminは全てのインボイスを閲覧可能
-          Invoice.includes(:user).all
+          Invoice.includes(:user).order(invoice_date: :asc, id: :asc)
         elsif current_user.role == 'admin'
           # adminはスーパー管理者とokiユーザー以外のインボイスを閲覧可能
           Invoice.includes(:user)
                     .joins(:user)
                     .where.not(users: { role: 'superadmin' })
                     .where.not(users: { user_id: 'oki' })
+                    .order(invoice_date: :asc, id: :asc)
         else
           # 一般ユーザーは自分のインボイスのみ閲覧可能
-          current_user.invoices
+          current_user.invoices.order(invoice_date: :asc, id: :asc)
         end
 
         render json: invoices.map { |i| invoice_json(i) }

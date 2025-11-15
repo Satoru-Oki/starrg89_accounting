@@ -1100,6 +1100,7 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
             disableRowSelectionOnClick
             density={isMobile ? 'compact' : 'standard'}
             pageSizeOptions={[5, 10, 25, 50, 100]}
+            sortModel={[]}
             initialState={{
               pagination: {
                 paginationModel: { pageSize: isMobile ? 10 : 25 },

@@ -992,6 +992,7 @@ const InvoiceTable = ({ hideAppBar = false }: InvoiceTableProps = {}) => {
             disableRowSelectionOnClick
             density={isMobile ? 'compact' : 'standard'}
             pageSizeOptions={[5, 10, 25, 50, 100]}
+            sortModel={[]}
             initialState={{
               pagination: {
                 paginationModel: { pageSize: isMobile ? 10 : 25 },
