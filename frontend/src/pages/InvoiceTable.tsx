@@ -276,6 +276,9 @@ const InvoiceTable = ({ hideAppBar = false }: InvoiceTableProps = {}) => {
             throw new Error('請求額は0以上で入力してください');
           }
           formData.append('invoice_amount', invoiceAmountValue.toString());
+        } else {
+          // 空の場合は空文字列を送信してフィールドをクリア
+          formData.append('invoice_amount', '');
         }
 
         // 請求書画像を追加
@@ -324,6 +327,9 @@ const InvoiceTable = ({ hideAppBar = false }: InvoiceTableProps = {}) => {
             throw new Error('請求額は0以上で入力してください');
           }
           invoiceData.invoice_amount = invoiceAmountValue;
+        } else {
+          // 空の場合はnullを送信してフィールドをクリア
+          invoiceData.invoice_amount = null;
         }
 
         console.log('Invoice data to send:', JSON.stringify(invoiceData, null, 2));

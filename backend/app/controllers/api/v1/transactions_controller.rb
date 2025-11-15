@@ -424,6 +424,10 @@ module Api
         Rails.logger.info "Received params: #{params.inspect}"
         Rails.logger.info "Permitted params: #{permitted.inspect}"
 
+        # 空文字列をnullに変換（数値フィールド）
+        permitted[:deposit_from_star] = nil if permitted[:deposit_from_star].blank?
+        permitted[:payment] = nil if permitted[:payment].blank?
+
         permitted
       end
       

@@ -294,6 +294,9 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
             throw new Error('入金額は0以上で入力してください');
           }
           formData.append('deposit_from_star', depositValue.toString());
+        } else {
+          // 空の場合は空文字列を送信してフィールドをクリア
+          formData.append('deposit_from_star', '');
         }
 
         // 支払額の検証
@@ -309,6 +312,9 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
             throw new Error('支払額は0以上で入力してください');
           }
           formData.append('payment', paymentValue.toString());
+        } else {
+          // 空の場合は空文字列を送信してフィールドをクリア
+          formData.append('payment', '');
         }
 
         // レシート画像を追加
@@ -358,6 +364,9 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
             throw new Error('入金額は0以上で入力してください');
           }
           transactionData.deposit_from_star = depositValue;
+        } else {
+          // 空の場合はnullを送信してフィールドをクリア
+          transactionData.deposit_from_star = null;
         }
 
         // 支払額の検証
@@ -373,6 +382,9 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
             throw new Error('支払額は0以上で入力してください');
           }
           transactionData.payment = paymentValue;
+        } else {
+          // 空の場合はnullを送信してフィールドをクリア
+          transactionData.payment = null;
         }
 
         console.log('Transaction data to send:', JSON.stringify(transactionData, null, 2));
