@@ -53,12 +53,20 @@ export const detectReceiptCorners = (
   let edges: any = null;
   let contours: any = null;
   let hierarchy: any = null;
+  let canvas: any = null;
 
   try {
-    // ビデオから画像を取得
-    src = new cv.Mat(videoElement.videoHeight, videoElement.videoWidth, cv.CV_8UC4);
-    const cap = new cv.VideoCapture(videoElement);
-    cap.read(src);
+    // ビデオから画像を取得（canvasを経由）
+    canvas = document.createElement('canvas');
+    canvas.width = videoElement.videoWidth;
+    canvas.height = videoElement.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+    // canvasからMatを作成
+    src = cv.imread(canvas);
 
     // グレースケール変換
     gray = new cv.Mat();

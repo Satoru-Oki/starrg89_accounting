@@ -104,13 +104,26 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
     };
   }, [open, startCamera, stopCamera]);
 
-  // カメラが起動したら検出ループを開始
+  // ビデオが再生開始したら検出ループを開始
   useEffect(() => {
-    if (open && cvReady && videoRef.current && videoRef.current.readyState === 4) {
+    const video = videoRef.current;
+    if (!video || !open || !cvReady) return;
+
+    const handlePlaying = () => {
+      console.log('Video playing, starting detection loop');
       detectLoop();
+    };
+
+    // ビデオがすでに再生中の場合
+    if (video.readyState >= 3) {
+      handlePlaying();
     }
 
+    // playingイベントをリッスン
+    video.addEventListener('playing', handlePlaying);
+
     return () => {
+      video.removeEventListener('playing', handlePlaying);
       if (detectionFrameRef.current) {
         cancelAnimationFrame(detectionFrameRef.current);
       }
