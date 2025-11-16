@@ -135,7 +135,7 @@ const TransactionPDFDocument = ({ transactions, userName, monthPeriod }: PDFDocu
       {/* データ行 */}
       <View style={{ borderLeft: '1px solid #000', borderRight: '1px solid #000', borderBottom: '1px solid #000' }}>
         {transactions.map((transaction, index) => (
-          <View key={index} style={styles.tableRow}>
+          <View key={index} style={styles.tableRow} wrap={false}>
             <View style={[styles.tableCol, styles.tableColDate]}>
               <Text style={styles.tableColText}>{formatDate(transaction.date)}</Text>
             </View>
