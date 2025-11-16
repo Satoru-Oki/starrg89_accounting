@@ -180,16 +180,78 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
 
       if (!ctx) return;
 
-      // ビデオのサイズに合わせてcanvasのサイズを設定
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      let finalCanvas = canvas;
 
-      // 現在のフレームをcanvasに描画
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // 枠が検出されている場合は台形補正を適用
+      if (corners && corners.length === 4 && cvReady && typeof cv !== 'undefined') {
+        console.log('Applying perspective transform with detected corners');
+
+        // 元の画像をcanvasに描画
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // OpenCV.jsで台形補正
+        const src = cv.imread(canvas);
+
+        // 検出した4つの角の座標
+        const srcPoints = cv.matFromArray(4, 1, cv.CV_32FC2, [
+          corners[0].x, corners[0].y,  // 左上
+          corners[1].x, corners[1].y,  // 右上
+          corners[2].x, corners[2].y,  // 右下
+          corners[3].x, corners[3].y   // 左下
+        ]);
+
+        // 目標となる矩形のサイズを計算
+        const width1 = Math.sqrt(Math.pow(corners[1].x - corners[0].x, 2) + Math.pow(corners[1].y - corners[0].y, 2));
+        const width2 = Math.sqrt(Math.pow(corners[2].x - corners[3].x, 2) + Math.pow(corners[2].y - corners[3].y, 2));
+        const height1 = Math.sqrt(Math.pow(corners[3].x - corners[0].x, 2) + Math.pow(corners[3].y - corners[0].y, 2));
+        const height2 = Math.sqrt(Math.pow(corners[2].x - corners[1].x, 2) + Math.pow(corners[2].y - corners[1].y, 2));
+
+        const maxWidth = Math.max(width1, width2);
+        const maxHeight = Math.max(height1, height2);
+
+        // 目標となる矩形の座標
+        const dstPoints = cv.matFromArray(4, 1, cv.CV_32FC2, [
+          0, 0,
+          maxWidth, 0,
+          maxWidth, maxHeight,
+          0, maxHeight
+        ]);
+
+        // 透視変換行列を計算
+        const M = cv.getPerspectiveTransform(srcPoints, dstPoints);
+
+        // 変換を適用
+        const dst = new cv.Mat();
+        const dsize = new cv.Size(maxWidth, maxHeight);
+        cv.warpPerspective(src, dst, M, dsize);
+
+        // 結果を新しいcanvasに描画
+        const trimmedCanvas = document.createElement('canvas');
+        trimmedCanvas.width = maxWidth;
+        trimmedCanvas.height = maxHeight;
+        cv.imshow(trimmedCanvas, dst);
+
+        finalCanvas = trimmedCanvas;
+
+        // メモリ解放
+        src.delete();
+        dst.delete();
+        M.delete();
+        srcPoints.delete();
+        dstPoints.delete();
+      } else {
+        // 枠が検出されていない場合は通常の撮影
+        console.log('No corners detected, capturing full frame');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
 
       // canvasをBlobに変換（高品質）
       const blob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((blob) => {
+        finalCanvas.toBlob((blob) => {
           resolve(blob!);
         }, 'image/jpeg', 0.95);
       });

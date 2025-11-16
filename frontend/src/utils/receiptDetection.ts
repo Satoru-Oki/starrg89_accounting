@@ -76,9 +76,15 @@ export const detectReceiptCorners = (
     blurred = new cv.Mat();
     cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
 
-    // Cannyエッジ検出
+    // Cannyエッジ検出（閾値を調整して精度向上）
     edges = new cv.Mat();
-    cv.Canny(blurred, edges, 50, 150);
+    cv.Canny(blurred, edges, 75, 200);
+
+    // モルフォロジー処理でエッジを強化
+    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+    cv.dilate(edges, edges, kernel);
+    cv.erode(edges, edges, kernel);
+    kernel.delete();
 
     // 輪郭検出
     contours = new cv.MatVector();
@@ -94,23 +100,34 @@ export const detectReceiptCorners = (
     // 最大面積の四角形を検出
     let maxArea = 0;
     let bestCorners: Corner[] | null = null;
+    const imageArea = videoElement.videoWidth * videoElement.videoHeight;
 
     for (let i = 0; i < contours.size(); i++) {
       const contour = contours.get(i);
+      const area = cv.contourArea(contour);
 
-      // 輪郭を多角形近似
+      // 画像の3%以上、95%以下の面積がある輪郭のみ対象
+      const minArea = imageArea * 0.03;
+      const maxAreaLimit = imageArea * 0.95;
+
+      if (area < minArea || area > maxAreaLimit) {
+        contour.delete();
+        continue;
+      }
+
+      // 輪郭を多角形近似（より厳密に）
       const approx = new cv.Mat();
       const perimeter = cv.arcLength(contour, true);
-      cv.approxPolyDP(contour, approx, 0.02 * perimeter, true);
+      cv.approxPolyDP(contour, approx, 0.015 * perimeter, true);
 
       // 4つの角がある場合のみ処理
       if (approx.rows === 4) {
-        const area = cv.contourArea(contour);
+        // アスペクト比をチェック（レシートっぽい形か）
+        const rect = cv.boundingRect(approx);
+        const aspectRatio = Math.max(rect.width, rect.height) / Math.min(rect.width, rect.height);
 
-        // 画像の5%以上の面積がある四角形のみ対象
-        const minArea = (videoElement.videoWidth * videoElement.videoHeight) * 0.05;
-
-        if (area > maxArea && area > minArea) {
+        // アスペクト比が1.2〜4.0の範囲（レシートの一般的な形状）
+        if (aspectRatio >= 1.2 && aspectRatio <= 4.0 && area > maxArea) {
           maxArea = area;
 
           // 4つの角の座標を取得
