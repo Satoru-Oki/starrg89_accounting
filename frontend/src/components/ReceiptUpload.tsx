@@ -98,6 +98,8 @@ export const ReceiptUpload = ({
         }
       }
 
+      console.log('サーバー側で枠検出・影除去・明るさ補正を実行します...');
+
       // OCR処理を実行（失敗しても画像は保存できる）
       let ocrData: OcrData = {};
 

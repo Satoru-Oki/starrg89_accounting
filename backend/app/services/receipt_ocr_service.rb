@@ -7,8 +7,18 @@ class ReceiptOcrService
   # 画像ファイルからOCRでテキストを抽出（Gemini Vision使用）
   def extract_receipt_data(image_path)
     begin
+      # 画像処理を実行（枠検出、台形補正、影除去、明るさ補正）
+      processor = ReceiptImageProcessor.new
+      processing_result = processor.process_receipt_image(image_path)
+
+      # 処理済み画像を使用（エラー時は元の画像）
+      processed_image_path = processing_result[:processed_image_path]
+
+      Rails.logger.info "画像処理結果: #{processing_result[:success] ? '成功' : '失敗'}"
+      Rails.logger.info "角検出: #{processing_result[:corners_detected] ? 'あり' : 'なし'}"
+
       # 画像ファイルを読み込んでBase64エンコード
-      image_data = File.binread(image_path)
+      image_data = File.binread(processed_image_path)
       base64_image = Base64.strict_encode64(image_data)
 
       # 画像の拡張子からMIMEタイプを判定
