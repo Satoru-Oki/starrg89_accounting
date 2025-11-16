@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -51,6 +51,7 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
   const [error, setError] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<string>('all');
+  const scrollToNewRow = useRef<boolean>(false);
   const [initialLoadDate] = useState<string>(() => {
     // ページ読み込み日付（YYYY-MM-DD形式）
     const now = new Date();
@@ -178,6 +179,26 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
     });
   }, [allRows, selectedMonth, selectedUser, user?.role]);
 
+  // 新しい行が追加されたらスクロール
+  useEffect(() => {
+    if (scrollToNewRow.current && apiRef.current && filteredRows.length > 0) {
+      setTimeout(() => {
+        // ページサイズを取得
+        const pageSize = apiRef.current.state.pagination.paginationModel.pageSize;
+        // 最後のページ番号を計算（0始まり）
+        const lastPage = Math.floor((filteredRows.length - 1) / pageSize);
+
+        // 最後のページに移動
+        apiRef.current.setPage(lastPage);
+
+        // 最後の行までスクロール
+        apiRef.current.scrollToIndexes({ rowIndex: filteredRows.length - 1 });
+
+        scrollToNewRow.current = false;
+      }, 100);
+    }
+  }, [filteredRows, apiRef]);
+
   const handleAddRow = () => {
     const newId = `new-${Date.now()}`;
     const today = new Date();
@@ -202,14 +223,8 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
     const updatedRows = [...allRows, newRow];
     setAllRows(updatedRows);
 
-    // 追加された行までスクロール
-    setTimeout(() => {
-      if (apiRef.current) {
-        // 新しい行はフィルタリング後の最後に表示されるので、最後の行までスクロール
-        // 十分大きな数値を指定して最下部までスクロール
-        apiRef.current.scrollToIndexes({ rowIndex: 9999 });
-      }
-    }, 150);
+    // スクロールフラグを設定（useEffectでスクロールが実行される）
+    scrollToNewRow.current = true;
   };
 
   const handleSaveRow = async (newRow: any) => {
