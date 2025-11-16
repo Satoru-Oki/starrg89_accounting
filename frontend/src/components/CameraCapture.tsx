@@ -13,6 +13,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import FlipCameraIosIcon from '@mui/icons-material/FlipCameraIos';
+import { waitForOpenCV, detectReceiptCorners, Corner } from '../utils/receiptDetection';
 
 interface CameraCaptureProps {
   open: boolean;
@@ -23,9 +24,13 @@ interface CameraCaptureProps {
 export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const detectionFrameRef = useRef<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const [corners, setCorners] = useState<Corner[] | null>(null);
+  const [cvReady, setCvReady] = useState(false);
 
   // カメラストリームを開始
   const startCamera = useCallback(async () => {
@@ -50,6 +55,11 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
+    // 検出ループを停止
+    if (detectionFrameRef.current) {
+      cancelAnimationFrame(detectionFrameRef.current);
+      detectionFrameRef.current = null;
+    }
   }, []);
 
   // カメラを切り替え
@@ -57,6 +67,29 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
     stopCamera();
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   };
+
+  // リアルタイム検出ループ
+  const detectLoop = useCallback(() => {
+    if (!videoRef.current || !cvReady || !open) {
+      return;
+    }
+
+    // 四角形を検出
+    const detectedCorners = detectReceiptCorners(videoRef.current);
+    setCorners(detectedCorners);
+
+    // 次のフレームで再度検出
+    detectionFrameRef.current = requestAnimationFrame(detectLoop);
+  }, [cvReady, open]);
+
+  // OpenCV.jsの初期化
+  useEffect(() => {
+    if (open && !cvReady) {
+      waitForOpenCV().then(() => {
+        setCvReady(true);
+      });
+    }
+  }, [open, cvReady]);
 
   // ダイアログが開いたらカメラを起動
   useEffect(() => {
@@ -70,6 +103,56 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       stopCamera();
     };
   }, [open, startCamera, stopCamera]);
+
+  // カメラが起動したら検出ループを開始
+  useEffect(() => {
+    if (open && cvReady && videoRef.current && videoRef.current.readyState === 4) {
+      detectLoop();
+    }
+
+    return () => {
+      if (detectionFrameRef.current) {
+        cancelAnimationFrame(detectionFrameRef.current);
+      }
+    };
+  }, [open, cvReady, detectLoop]);
+
+  // オーバーレイcanvasに枠を描画
+  useEffect(() => {
+    if (!overlayCanvasRef.current || !videoRef.current) return;
+
+    const overlayCanvas = overlayCanvasRef.current;
+    const ctx = overlayCanvas.getContext('2d');
+    if (!ctx) return;
+
+    // canvasサイズをビデオに合わせる
+    overlayCanvas.width = videoRef.current.videoWidth;
+    overlayCanvas.height = videoRef.current.videoHeight;
+
+    // canvasをクリア
+    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+    if (corners && corners.length === 4) {
+      // 枠を描画
+      ctx.strokeStyle = '#00ff00';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(corners[0].x, corners[0].y);
+      ctx.lineTo(corners[1].x, corners[1].y);
+      ctx.lineTo(corners[2].x, corners[2].y);
+      ctx.lineTo(corners[3].x, corners[3].y);
+      ctx.closePath();
+      ctx.stroke();
+
+      // 角に円を描画
+      ctx.fillStyle = '#00ff00';
+      corners.forEach((corner) => {
+        ctx.beginPath();
+        ctx.arc(corner.x, corner.y, 8, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+    }
+  }, [corners]);
 
   // 写真を撮影
   const handleCapture = async () => {
@@ -155,8 +238,63 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
             }}
           />
 
+          {/* 枠検出オーバーレイ */}
+          <canvas
+            ref={overlayCanvasRef}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              pointerEvents: 'none',
+            }}
+          />
+
           {/* 隠しcanvas（撮影用） */}
           <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+          {/* OpenCV読み込み中 */}
+          {!cvReady && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 16,
+                left: 16,
+                bgcolor: 'rgba(0, 0, 0, 0.6)',
+                color: 'white',
+                px: 2,
+                py: 1,
+                borderRadius: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+            >
+              <CircularProgress size={16} color="inherit" />
+              <Typography variant="caption">検出準備中...</Typography>
+            </Box>
+          )}
+
+          {/* 枠検出成功のメッセージ */}
+          {corners && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 16,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                bgcolor: 'rgba(0, 255, 0, 0.8)',
+                color: 'white',
+                px: 2,
+                py: 1,
+                borderRadius: 1,
+              }}
+            >
+              <Typography variant="caption">レシートを検出しました</Typography>
+            </Box>
+          )}
         </Box>
       </DialogContent>
       <DialogActions sx={{ justifyContent: 'space-between', p: 2 }}>

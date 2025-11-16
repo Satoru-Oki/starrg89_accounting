@@ -1,0 +1,151 @@
+import cv from '@techstark/opencv-js';
+
+export interface Corner {
+  x: number;
+  y: number;
+}
+
+// OpenCV.jsが読み込まれているか確認
+let cvReady = false;
+
+// OpenCV.jsの初期化を待つ
+export const waitForOpenCV = (): Promise<void> => {
+  return new Promise((resolve) => {
+    if (cvReady) {
+      resolve();
+      return;
+    }
+
+    // OpenCV.jsが読み込まれるまで待機
+    const checkInterval = setInterval(() => {
+      if (cv && cv.Mat) {
+        cvReady = true;
+        clearInterval(checkInterval);
+        console.log('OpenCV.js loaded successfully');
+        resolve();
+      }
+    }, 100);
+
+    // 10秒でタイムアウト
+    setTimeout(() => {
+      clearInterval(checkInterval);
+      console.error('OpenCV.js loading timeout');
+      resolve();
+    }, 10000);
+  });
+};
+
+// ビデオ要素から四角形（レシート）の角を検出
+export const detectReceiptCorners = (
+  videoElement: HTMLVideoElement
+): Corner[] | null => {
+  if (!cvReady || !cv || !cv.Mat) {
+    console.warn('OpenCV.js is not ready');
+    return null;
+  }
+
+  let src: any = null;
+  let gray: any = null;
+  let blurred: any = null;
+  let edges: any = null;
+  let contours: any = null;
+  let hierarchy: any = null;
+
+  try {
+    // ビデオから画像を取得
+    src = new cv.Mat(videoElement.videoHeight, videoElement.videoWidth, cv.CV_8UC4);
+    const cap = new cv.VideoCapture(videoElement);
+    cap.read(src);
+
+    // グレースケール変換
+    gray = new cv.Mat();
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+    // ノイズ除去（ガウシアンブラー）
+    blurred = new cv.Mat();
+    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+
+    // Cannyエッジ検出
+    edges = new cv.Mat();
+    cv.Canny(blurred, edges, 50, 150);
+
+    // 輪郭検出
+    contours = new cv.MatVector();
+    hierarchy = new cv.Mat();
+    cv.findContours(
+      edges,
+      contours,
+      hierarchy,
+      cv.RETR_EXTERNAL,
+      cv.CHAIN_APPROX_SIMPLE
+    );
+
+    // 最大面積の四角形を検出
+    let maxArea = 0;
+    let bestCorners: Corner[] | null = null;
+
+    for (let i = 0; i < contours.size(); i++) {
+      const contour = contours.get(i);
+
+      // 輪郭を多角形近似
+      const approx = new cv.Mat();
+      const perimeter = cv.arcLength(contour, true);
+      cv.approxPolyDP(contour, approx, 0.02 * perimeter, true);
+
+      // 4つの角がある場合のみ処理
+      if (approx.rows === 4) {
+        const area = cv.contourArea(contour);
+
+        // 画像の5%以上の面積がある四角形のみ対象
+        const minArea = (videoElement.videoWidth * videoElement.videoHeight) * 0.05;
+
+        if (area > maxArea && area > minArea) {
+          maxArea = area;
+
+          // 4つの角の座標を取得
+          const corners: Corner[] = [];
+          for (let j = 0; j < 4; j++) {
+            corners.push({
+              x: approx.data32S[j * 2],
+              y: approx.data32S[j * 2 + 1],
+            });
+          }
+
+          // 角を時計回りに並べ替え（左上、右上、右下、左下）
+          bestCorners = sortCorners(corners);
+        }
+      }
+
+      approx.delete();
+      contour.delete();
+    }
+
+    return bestCorners;
+  } catch (error) {
+    console.error('Corner detection error:', error);
+    return null;
+  } finally {
+    // メモリ解放
+    if (src) src.delete();
+    if (gray) gray.delete();
+    if (blurred) blurred.delete();
+    if (edges) edges.delete();
+    if (contours) contours.delete();
+    if (hierarchy) hierarchy.delete();
+  }
+};
+
+// 4つの角を時計回りに並べ替え（左上、右上、右下、左下）
+const sortCorners = (corners: Corner[]): Corner[] => {
+  // 重心を計算
+  const centerX = corners.reduce((sum, c) => sum + c.x, 0) / 4;
+  const centerY = corners.reduce((sum, c) => sum + c.y, 0) / 4;
+
+  // 各角がどの位置にあるか判定
+  const topLeft = corners.find(c => c.x < centerX && c.y < centerY) || corners[0];
+  const topRight = corners.find(c => c.x >= centerX && c.y < centerY) || corners[1];
+  const bottomRight = corners.find(c => c.x >= centerX && c.y >= centerY) || corners[2];
+  const bottomLeft = corners.find(c => c.x < centerX && c.y >= centerY) || corners[3];
+
+  return [topLeft, topRight, bottomRight, bottomLeft];
+};
