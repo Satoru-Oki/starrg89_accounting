@@ -104,8 +104,8 @@ const TransactionPDFDocument = ({ transactions, userName, monthPeriod }: PDFDocu
       <Text style={{ marginBottom: 20 }}>作成日: {new Date().toLocaleDateString('ja-JP')}</Text>
 
       <View style={styles.table}>
-        {/* ヘッダー行 */}
-        <View style={[styles.tableRow, styles.tableHeader]}>
+        {/* ヘッダー行 - fixed属性で各ページに表示 */}
+        <View style={[styles.tableRow, styles.tableHeader]} fixed>
           <View style={[styles.tableCol, styles.tableColDate]}>
             <Text style={styles.tableHeaderText}>日付</Text>
           </View>
