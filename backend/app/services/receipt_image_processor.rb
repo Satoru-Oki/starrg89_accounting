@@ -46,14 +46,18 @@ class ReceiptImageProcessor
       # ドキュメント検出を実行（ファイルパスを直接渡す）
       response = vision.document_text_detection(image: image_path)
 
-      if response.error.message.present?
-        Rails.logger.error "Vision API Error: #{response.error.message}"
+      # エラーチェック（responses配列の最初の要素をチェック）
+      if response.responses.empty? || response.responses.first.error&.message.present?
+        error_msg = response.responses.first&.error&.message || "レスポンスが空です"
+        Rails.logger.error "Vision API Error: #{error_msg}"
         return nil
       end
 
-      # ページの境界ボックスを取得
-      if response.full_text_annotation&.pages&.any?
-        page = response.full_text_annotation.pages.first
+      # ページの境界ボックスを取得（responses配列の最初の要素から取得）
+      annotation = response.responses.first.full_text_annotation
+
+      if annotation&.pages&.any?
+        page = annotation.pages.first
 
         if page.blocks.any?
           # すべてのブロックを含む最小の矩形を計算
