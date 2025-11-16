@@ -243,6 +243,32 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
         const dsize = new cv.Size(finalWidth, finalHeight);
         cv.warpPerspective(src, dst, M, dsize, cv.INTER_CUBIC);
 
+        // 影除去処理（CLAHE: Contrast Limited Adaptive Histogram Equalization）
+        const shadowRemoved = new cv.Mat();
+
+        // RGBからLab色空間に変換
+        const lab = new cv.Mat();
+        cv.cvtColor(dst, lab, cv.COLOR_RGB2Lab);
+
+        // Labチャンネルを分離
+        const channels = new cv.MatVector();
+        cv.split(lab, channels);
+
+        // Lチャンネル（明度）にCLAHEを適用して影を軽減
+        const clahe = new cv.CLAHE(2.0, new cv.Size(8, 8));
+        const lChannel = channels.get(0);
+        clahe.apply(lChannel, lChannel);
+
+        // チャンネルを結合してRGBに戻す
+        cv.merge(channels, lab);
+        cv.cvtColor(lab, shadowRemoved, cv.COLOR_Lab2RGB);
+
+        // メモリ解放
+        lab.delete();
+        channels.delete();
+        lChannel.delete();
+        dst.delete();
+
         // シャープネス処理でエッジを強調（OCR精度向上）
         const sharpened = new cv.Mat();
         const kernel = cv.matFromArray(3, 3, cv.CV_32F, [
@@ -250,9 +276,9 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
           -1, 5, -1,
           0, -1, 0
         ]);
-        cv.filter2D(dst, sharpened, cv.CV_8U, kernel);
+        cv.filter2D(shadowRemoved, sharpened, cv.CV_8U, kernel);
         kernel.delete();
-        dst.delete();
+        shadowRemoved.delete();
 
         // 結果を新しいcanvasに描画
         const trimmedCanvas = document.createElement('canvas');
