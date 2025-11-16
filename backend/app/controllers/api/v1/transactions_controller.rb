@@ -216,10 +216,22 @@ module Api
           end
       end
 
-      # レシート画像を自動トリミング
+      # レシート画像を自動処理（枠検出、台形補正、影除去）
       def trim_receipt_image(uploaded_file)
-        trimming_service = ReceiptTrimmingService.new
-        trimming_service.trim_receipt(uploaded_file)
+        processor = ReceiptImageProcessor.new
+        result = processor.process_receipt_image(uploaded_file.tempfile.path)
+
+        if result[:success]
+          # 処理済み画像のパスからTempfileを作成して返す
+          processed_file = Tempfile.new(['processed_receipt', '.jpg'])
+          FileUtils.cp(result[:processed_image_path], processed_file.path)
+          processed_file.rewind
+          processed_file
+        else
+          # エラー時は元の画像を返す
+          Rails.logger.warn "画像処理に失敗しました。元の画像を使用します: #{result[:error]}"
+          uploaded_file.tempfile
+        end
       end
 
       # Tempfileから画像をJPEG形式に圧縮
