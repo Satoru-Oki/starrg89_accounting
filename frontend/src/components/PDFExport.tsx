@@ -34,28 +34,36 @@ const styles = StyleSheet.create({
   tableHeader: {
     backgroundColor: '#f0f0f0',
   },
+  tableHeaderText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
   tableCol: {
     padding: 5,
     borderRightWidth: 1,
     borderRightColor: '#000',
+    overflow: 'hidden',
+  },
+  tableColText: {
+    fontSize: 9,
   },
   tableColDate: {
     width: '10%',
   },
   tableColDeposit: {
-    width: '11%',
+    width: '9%',
   },
   tableColPayment: {
-    width: '11%',
+    width: '9%',
   },
   tableColPayee: {
-    width: '12%',
+    width: '18%',
   },
   tableColCategory: {
-    width: '12%',
+    width: '11%',
   },
   tableColDescription: {
-    width: '25%',
+    width: '23%',
   },
   tableColReceipt: {
     width: '10%',
@@ -99,28 +107,28 @@ const TransactionPDFDocument = ({ transactions, userName, monthPeriod }: PDFDocu
         {/* ヘッダー行 */}
         <View style={[styles.tableRow, styles.tableHeader]}>
           <View style={[styles.tableCol, styles.tableColDate]}>
-            <Text>日付</Text>
+            <Text style={styles.tableHeaderText}>日付</Text>
           </View>
           <View style={[styles.tableCol, styles.tableColDeposit]}>
-            <Text>Starから入金</Text>
+            <Text style={styles.tableHeaderText}>入金</Text>
           </View>
           <View style={[styles.tableCol, styles.tableColPayment]}>
-            <Text>支払い</Text>
+            <Text style={styles.tableHeaderText}>支払い</Text>
           </View>
           <View style={[styles.tableCol, styles.tableColPayee]}>
-            <Text>支払先</Text>
+            <Text style={styles.tableHeaderText}>支払先</Text>
           </View>
           <View style={[styles.tableCol, styles.tableColCategory]}>
-            <Text>費目</Text>
+            <Text style={styles.tableHeaderText}>費目</Text>
           </View>
           <View style={[styles.tableCol, styles.tableColDescription]}>
-            <Text>摘要</Text>
+            <Text style={styles.tableHeaderText}>摘要</Text>
           </View>
           <View style={[styles.tableCol, styles.tableColReceipt]}>
-            <Text>領収書</Text>
+            <Text style={styles.tableHeaderText}>領収書</Text>
           </View>
           <View style={[styles.tableCol, styles.tableColBalance]}>
-            <Text>残金</Text>
+            <Text style={styles.tableHeaderText}>残金</Text>
           </View>
         </View>
 
@@ -128,28 +136,28 @@ const TransactionPDFDocument = ({ transactions, userName, monthPeriod }: PDFDocu
         {transactions.map((transaction, index) => (
           <View key={index} style={styles.tableRow}>
             <View style={[styles.tableCol, styles.tableColDate]}>
-              <Text>{formatDate(transaction.date)}</Text>
+              <Text style={styles.tableColText}>{formatDate(transaction.date)}</Text>
             </View>
             <View style={[styles.tableCol, styles.tableColDeposit]}>
-              <Text>{transaction.deposit_from_star ? `¥${transaction.deposit_from_star.toLocaleString()}` : ''}</Text>
+              <Text style={styles.tableColText}>{transaction.deposit_from_star ? `¥${transaction.deposit_from_star.toLocaleString()}` : ''}</Text>
             </View>
             <View style={[styles.tableCol, styles.tableColPayment]}>
-              <Text>{transaction.payment ? `¥${transaction.payment.toLocaleString()}` : ''}</Text>
+              <Text style={styles.tableColText}>{transaction.payment ? `¥${transaction.payment.toLocaleString()}` : ''}</Text>
             </View>
             <View style={[styles.tableCol, styles.tableColPayee]}>
-              <Text>{transaction.payee || ''}</Text>
+              <Text style={styles.tableColText}>{transaction.payee || ''}</Text>
             </View>
             <View style={[styles.tableCol, styles.tableColCategory]}>
-              <Text>{transaction.category}</Text>
+              <Text style={styles.tableColText}>{transaction.category}</Text>
             </View>
             <View style={[styles.tableCol, styles.tableColDescription]}>
-              <Text>{transaction.description}</Text>
+              <Text style={styles.tableColText}>{transaction.description}</Text>
             </View>
             <View style={[styles.tableCol, styles.tableColReceipt]}>
-              <Text>{transaction.receipt_status}</Text>
+              <Text style={styles.tableColText}>{transaction.receipt_status}</Text>
             </View>
             <View style={[styles.tableCol, styles.tableColBalance]}>
-              <Text>{transaction.balance ? `¥${transaction.balance.toLocaleString()}` : '¥0'}</Text>
+              <Text style={styles.tableColText}>{transaction.balance ? `¥${transaction.balance.toLocaleString()}` : '¥0'}</Text>
             </View>
           </View>
         ))}
