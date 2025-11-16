@@ -76,15 +76,9 @@ export const detectReceiptCorners = (
     blurred = new cv.Mat();
     cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
 
-    // Cannyエッジ検出（閾値を調整して精度向上）
+    // Cannyエッジ検出（閾値を緩めて検出しやすく）
     edges = new cv.Mat();
-    cv.Canny(blurred, edges, 75, 200);
-
-    // モルフォロジー処理でエッジを強化
-    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
-    cv.dilate(edges, edges, kernel);
-    cv.erode(edges, edges, kernel);
-    kernel.delete();
+    cv.Canny(blurred, edges, 50, 150);
 
     // 輪郭検出
     contours = new cv.MatVector();
@@ -97,7 +91,7 @@ export const detectReceiptCorners = (
       cv.CHAIN_APPROX_SIMPLE
     );
 
-    // 最大面積の四角形を検出
+    // 最大面積の四角形を検出（一番外側を優先）
     let maxArea = 0;
     let bestCorners: Corner[] | null = null;
     const imageArea = videoElement.videoWidth * videoElement.videoHeight;
@@ -106,28 +100,23 @@ export const detectReceiptCorners = (
       const contour = contours.get(i);
       const area = cv.contourArea(contour);
 
-      // 画像の3%以上、95%以下の面積がある輪郭のみ対象
-      const minArea = imageArea * 0.03;
-      const maxAreaLimit = imageArea * 0.95;
+      // 画像の2%以上の面積がある輪郭のみ対象（上限チェックなし）
+      const minArea = imageArea * 0.02;
 
-      if (area < minArea || area > maxAreaLimit) {
+      if (area < minArea) {
         contour.delete();
         continue;
       }
 
-      // 輪郭を多角形近似（より厳密に）
+      // 輪郭を多角形近似（緩めに設定して検出しやすく）
       const approx = new cv.Mat();
       const perimeter = cv.arcLength(contour, true);
-      cv.approxPolyDP(contour, approx, 0.015 * perimeter, true);
+      cv.approxPolyDP(contour, approx, 0.02 * perimeter, true);
 
       // 4つの角がある場合のみ処理
       if (approx.rows === 4) {
-        // アスペクト比をチェック（レシートっぽい形か）
-        const rect = cv.boundingRect(approx);
-        const aspectRatio = Math.max(rect.width, rect.height) / Math.min(rect.width, rect.height);
-
-        // アスペクト比が1.2〜4.0の範囲（レシートの一般的な形状）
-        if (aspectRatio >= 1.2 && aspectRatio <= 4.0 && area > maxArea) {
+        // 最大面積の四角形を採用（一番外側）
+        if (area > maxArea) {
           maxArea = area;
 
           // 4つの角の座標を取得

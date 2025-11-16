@@ -62,9 +62,17 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
     }
   }, []);
 
+  // ダイアログを閉じる際に状態をリセット
+  const handleClose = useCallback(() => {
+    setCorners(null);
+    stopCamera();
+    onClose();
+  }, [onClose, stopCamera]);
+
   // カメラを切り替え
   const toggleCamera = () => {
     stopCamera();
+    setCorners(null); // 枠をリセット
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   };
 
@@ -208,30 +216,38 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
         const height1 = Math.sqrt(Math.pow(corners[3].x - corners[0].x, 2) + Math.pow(corners[3].y - corners[0].y, 2));
         const height2 = Math.sqrt(Math.pow(corners[2].x - corners[1].x, 2) + Math.pow(corners[2].y - corners[1].y, 2));
 
-        const maxWidth = Math.max(width1, width2);
-        const maxHeight = Math.max(height1, height2);
+        // 最大サイズを使用（整数に丸める）
+        const maxWidth = Math.round(Math.max(width1, width2));
+        const maxHeight = Math.round(Math.max(height1, height2));
 
-        // 目標となる矩形の座標
+        // 最小解像度を確保（800px以上）
+        const scale = Math.max(1, 800 / Math.min(maxWidth, maxHeight));
+        const finalWidth = Math.round(maxWidth * scale);
+        const finalHeight = Math.round(maxHeight * scale);
+
+        // 目標となる矩形の座標（スケーリング後のサイズ）
         const dstPoints = cv.matFromArray(4, 1, cv.CV_32FC2, [
           0, 0,
-          maxWidth, 0,
-          maxWidth, maxHeight,
-          0, maxHeight
+          finalWidth, 0,
+          finalWidth, finalHeight,
+          0, finalHeight
         ]);
 
         // 透視変換行列を計算
         const M = cv.getPerspectiveTransform(srcPoints, dstPoints);
 
-        // 変換を適用
+        // 変換を適用（高解像度で）
         const dst = new cv.Mat();
-        const dsize = new cv.Size(maxWidth, maxHeight);
-        cv.warpPerspective(src, dst, M, dsize);
+        const dsize = new cv.Size(finalWidth, finalHeight);
+        cv.warpPerspective(src, dst, M, dsize, cv.INTER_LINEAR);
 
         // 結果を新しいcanvasに描画
         const trimmedCanvas = document.createElement('canvas');
-        trimmedCanvas.width = maxWidth;
-        trimmedCanvas.height = maxHeight;
+        trimmedCanvas.width = finalWidth;
+        trimmedCanvas.height = finalHeight;
         cv.imshow(trimmedCanvas, dst);
+
+        console.log(`Trimmed image size: ${finalWidth}x${finalHeight}`);
 
         finalCanvas = trimmedCanvas;
 
@@ -276,7 +292,7 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       maxWidth="md"
       fullWidth
       fullScreen
@@ -284,7 +300,7 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       <DialogTitle>
         レシート撮影
         <IconButton
-          onClick={onClose}
+          onClick={handleClose}
           sx={{ position: 'absolute', right: 8, top: 8 }}
         >
           <CloseIcon />
