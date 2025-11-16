@@ -22,12 +22,13 @@ class ReceiptImageProcessor
         end
       end
 
-      # 影除去と明るさ補正（しっかりモード）
-      processed_path = apply_shadow_removal_and_brightness(image_path)
+      # クライアント側で既に高品質な処理が完了しているため、
+      # サーバー側での追加処理（影除去、明るさ補正）は無効化
+      # processed_path = apply_shadow_removal_and_brightness(image_path)
 
       {
         success: true,
-        processed_image_path: processed_path,
+        processed_image_path: image_path, # 元の画像をそのまま使用
         corners_detected: !corners.nil?
       }
     rescue StandardError => e

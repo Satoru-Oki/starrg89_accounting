@@ -292,8 +292,8 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       // 親コンポーネントにファイルを渡す
       onCapture(file);
 
-      // カメラを停止してダイアログを閉じる（状態をリセット）
-      handleClose();
+      // カメラは開いたままにして、連続撮影を可能にする
+      // ユーザーが手動で閉じるまで検出を続ける
     } catch (error) {
       console.error('撮影エラー:', error);
       alert('撮影に失敗しました');
