@@ -1,4 +1,5 @@
-import cv from '@techstark/opencv-js';
+// OpenCV.jsはCDN経由でグローバルにロードされる
+declare const cv: any;
 
 export interface Corner {
   x: number;
@@ -18,7 +19,7 @@ export const waitForOpenCV = (): Promise<void> => {
 
     // OpenCV.jsが読み込まれるまで待機
     const checkInterval = setInterval(() => {
-      if (cv && cv.Mat) {
+      if (typeof cv !== 'undefined' && cv && cv.Mat) {
         cvReady = true;
         clearInterval(checkInterval);
         console.log('OpenCV.js loaded successfully');
@@ -26,12 +27,14 @@ export const waitForOpenCV = (): Promise<void> => {
       }
     }, 100);
 
-    // 10秒でタイムアウト
+    // 30秒でタイムアウト
     setTimeout(() => {
       clearInterval(checkInterval);
-      console.error('OpenCV.js loading timeout');
+      if (!cvReady) {
+        console.error('OpenCV.js loading timeout');
+      }
       resolve();
-    }, 10000);
+    }, 30000);
   });
 };
 
@@ -39,7 +42,7 @@ export const waitForOpenCV = (): Promise<void> => {
 export const detectReceiptCorners = (
   videoElement: HTMLVideoElement
 ): Corner[] | null => {
-  if (!cvReady || !cv || !cv.Mat) {
+  if (!cvReady || typeof cv === 'undefined' || !cv || !cv.Mat) {
     console.warn('OpenCV.js is not ready');
     return null;
   }
