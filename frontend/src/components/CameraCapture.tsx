@@ -180,10 +180,10 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
     if (open) {
       startCamera();
 
-      // 500msごとに枠検出を実行
+      // 3秒ごとに枠検出を実行
       detectionIntervalRef.current = setInterval(() => {
         detectCorners();
-      }, 500);
+      }, 3000);
     } else {
       stopCamera();
     }
