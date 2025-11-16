@@ -2,18 +2,24 @@ require 'mini_magick'
 require 'google/cloud/vision'
 
 class ReceiptImageProcessor
-  # 画像を処理（枠検出、台形補正、影除去、明るさ補正）
-  def process_receipt_image(image_path)
+  # 画像を処理（影除去、明るさ補正のみ）
+  # クライアント側（OpenCV.js）で既に台形補正済みのため、サーバー側では補正をスキップ
+  def process_receipt_image(image_path, skip_perspective_correction: true)
     begin
-      # Google Cloud Vision APIでドキュメントの角を検出
-      corners = detect_document_corners(image_path)
-
-      # 角が検出された場合は台形補正を実行
-      if corners && corners.length == 4
-        Rails.logger.info "ドキュメントの角を検出: #{corners.inspect}"
-        image_path = apply_perspective_correction(image_path, corners)
+      # クライアント側で台形補正済みの場合はスキップ
+      if skip_perspective_correction
+        Rails.logger.info "クライアント側で台形補正済みのため、サーバー側の補正をスキップします。"
       else
-        Rails.logger.info "ドキュメントの角が検出できませんでした。補正をスキップします。"
+        # Google Cloud Vision APIでドキュメントの角を検出
+        corners = detect_document_corners(image_path)
+
+        # 角が検出された場合は台形補正を実行
+        if corners && corners.length == 4
+          Rails.logger.info "ドキュメントの角を検出: #{corners.inspect}"
+          image_path = apply_perspective_correction(image_path, corners)
+        else
+          Rails.logger.info "ドキュメントの角が検出できませんでした。補正をスキップします。"
+        end
       end
 
       # 影除去と明るさ補正（しっかりモード）
