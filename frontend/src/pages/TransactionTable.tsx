@@ -751,16 +751,16 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
     {
       field: 'date',
       headerName: '日付',
-      width: isMobile ? 90 : 110,
-      minWidth: 90,
+      width: isMobile ? 100 : 110,
+      minWidth: 100,
       editable: true,
       type: 'date',
     },
     {
       field: 'deposit_from_star',
       headerName: '入金',
-      width: isMobile ? 70 : 90,
-      minWidth: 70,
+      width: isMobile ? 80 : 90,
+      minWidth: 80,
       editable: true,
       valueFormatter: (params: any) => {
         if (params.value == null || params.value === '') return '';
@@ -770,8 +770,8 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
     {
       field: 'payment',
       headerName: '支払い',
-      width: isMobile ? 70 : 90,
-      minWidth: 70,
+      width: isMobile ? 85 : 90,
+      minWidth: 85,
       editable: true,
       valueFormatter: (params: any) => {
         if (params.value == null || params.value === '') return '';
@@ -833,8 +833,8 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
     {
       field: 'balance',
       headerName: '残金',
-      width: isMobile ? 70 : 90,
-      minWidth: 70,
+      width: isMobile ? 80 : 90,
+      minWidth: 80,
       editable: false,
       type: 'number',
       valueFormatter: (params: any) => {
