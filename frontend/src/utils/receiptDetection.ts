@@ -76,9 +76,15 @@ export const detectReceiptCorners = (
     blurred = new cv.Mat();
     cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
 
-    // Cannyエッジ検出（閾値を緩めて検出しやすく）
+    // Cannyエッジ検出（閾値を低めに設定）
     edges = new cv.Mat();
-    cv.Canny(blurred, edges, 50, 150);
+    cv.Canny(blurred, edges, 30, 100);
+
+    // モルフォロジー処理で外側の輪郭を強調
+    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
+    cv.dilate(edges, edges, kernel);
+    cv.dilate(edges, edges, kernel); // 2回実行して内部の細かい線を消す
+    kernel.delete();
 
     // 輪郭検出
     contours = new cv.MatVector();
@@ -91,16 +97,17 @@ export const detectReceiptCorners = (
       cv.CHAIN_APPROX_SIMPLE
     );
 
-    // 最大面積の四角形を検出（一番外側を優先）
-    let maxArea = 0;
+    // 最大スコアの四角形を検出（外側の白い紙を優先）
+    let maxScore = 0;
     let bestCorners: Corner[] | null = null;
     const imageArea = videoElement.videoWidth * videoElement.videoHeight;
+    const imagePerimeter = 2 * (videoElement.videoWidth + videoElement.videoHeight);
 
     for (let i = 0; i < contours.size(); i++) {
       const contour = contours.get(i);
       const area = cv.contourArea(contour);
 
-      // 画像の2%以上の面積がある輪郭のみ対象（上限チェックなし）
+      // 画像の2%以上の面積がある輪郭のみ対象
       const minArea = imageArea * 0.02;
 
       if (area < minArea) {
@@ -108,16 +115,20 @@ export const detectReceiptCorners = (
         continue;
       }
 
-      // 輪郭を多角形近似（緩めに設定して検出しやすく）
+      // 輪郭を多角形近似（緩めに設定）
       const approx = new cv.Mat();
       const perimeter = cv.arcLength(contour, true);
-      cv.approxPolyDP(contour, approx, 0.02 * perimeter, true);
+      cv.approxPolyDP(contour, approx, 0.03 * perimeter, true);
 
       // 4つの角がある場合のみ処理
       if (approx.rows === 4) {
-        // 最大面積の四角形を採用（一番外側）
-        if (area > maxArea) {
-          maxArea = area;
+        // スコアリング：面積 + 周囲長（外側の大きな四角形を優先）
+        const areaScore = area / imageArea;
+        const perimeterScore = perimeter / imagePerimeter;
+        const score = areaScore * 0.6 + perimeterScore * 0.4;
+
+        if (score > maxScore) {
+          maxScore = score;
 
           // 4つの角の座標を取得
           const corners: Corner[] = [];

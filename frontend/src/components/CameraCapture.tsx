@@ -105,10 +105,12 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       startCamera();
     } else {
       stopCamera();
+      setCorners(null); // ダイアログが閉じたら枠をリセット
     }
 
     return () => {
       stopCamera();
+      setCorners(null);
     };
   }, [open, startCamera, stopCamera]);
 
@@ -220,8 +222,8 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
         const maxWidth = Math.round(Math.max(width1, width2));
         const maxHeight = Math.round(Math.max(height1, height2));
 
-        // 最小解像度を確保（1200px以上で高品質）
-        const scale = Math.max(1, 1200 / Math.min(maxWidth, maxHeight));
+        // 最小解像度を確保（1600px以上で高品質）
+        const scale = Math.max(1, 1600 / Math.min(maxWidth, maxHeight));
         const finalWidth = Math.round(maxWidth * scale);
         const finalHeight = Math.round(maxHeight * scale);
 
@@ -241,19 +243,31 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
         const dsize = new cv.Size(finalWidth, finalHeight);
         cv.warpPerspective(src, dst, M, dsize, cv.INTER_CUBIC);
 
+        // シャープネス処理でエッジを強調（OCR精度向上）
+        const sharpened = new cv.Mat();
+        const kernel = cv.matFromArray(3, 3, cv.CV_32F, [
+          0, -1, 0,
+          -1, 5, -1,
+          0, -1, 0
+        ]);
+        cv.filter2D(dst, sharpened, cv.CV_8U, kernel);
+        kernel.delete();
+        dst.delete();
+
         // 結果を新しいcanvasに描画
         const trimmedCanvas = document.createElement('canvas');
         trimmedCanvas.width = finalWidth;
         trimmedCanvas.height = finalHeight;
-        cv.imshow(trimmedCanvas, dst);
+        cv.imshow(trimmedCanvas, sharpened);
 
         console.log(`Trimmed image size: ${finalWidth}x${finalHeight}`);
+
+        sharpened.delete();
 
         finalCanvas = trimmedCanvas;
 
         // メモリ解放
         src.delete();
-        dst.delete();
         M.delete();
         srcPoints.delete();
         dstPoints.delete();
@@ -278,9 +292,8 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       // 親コンポーネントにファイルを渡す
       onCapture(file);
 
-      // カメラを停止してダイアログを閉じる
-      stopCamera();
-      onClose();
+      // カメラを停止してダイアログを閉じる（状態をリセット）
+      handleClose();
     } catch (error) {
       console.error('撮影エラー:', error);
       alert('撮影に失敗しました');
