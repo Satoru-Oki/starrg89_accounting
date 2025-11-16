@@ -43,14 +43,8 @@ class ReceiptImageProcessor
       # Vision APIクライアントを作成
       vision = Google::Cloud::Vision.image_annotator
 
-      # 画像ファイルを読み込む
-      image_content = File.binread(image_path)
-
-      # リクエストを作成
-      image = { content: image_content }
-
-      # ドキュメント検出を実行
-      response = vision.document_text_detection(image: image)
+      # ドキュメント検出を実行（ファイルパスを直接渡す）
+      response = vision.document_text_detection(image: image_path)
 
       if response.error.message.present?
         Rails.logger.error "Vision API Error: #{response.error.message}"
