@@ -30,6 +30,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: '#000',
+    minHeight: 20,
   },
   tableHeader: {
     backgroundColor: '#f0f0f0',
@@ -103,36 +104,36 @@ const TransactionPDFDocument = ({ transactions, userName, monthPeriod }: PDFDocu
       <Text style={{ marginBottom: 10 }}>作成者: {userName}</Text>
       <Text style={{ marginBottom: 20 }}>作成日: {new Date().toLocaleDateString('ja-JP')}</Text>
 
-      <View style={styles.table}>
-        {/* ヘッダー行 - fixed属性で各ページに表示 */}
-        <View style={[styles.tableRow, styles.tableHeader]} fixed>
-          <View style={[styles.tableCol, styles.tableColDate]}>
-            <Text style={styles.tableHeaderText}>日付</Text>
-          </View>
-          <View style={[styles.tableCol, styles.tableColDeposit]}>
-            <Text style={styles.tableHeaderText}>入金</Text>
-          </View>
-          <View style={[styles.tableCol, styles.tableColPayment]}>
-            <Text style={styles.tableHeaderText}>支払い</Text>
-          </View>
-          <View style={[styles.tableCol, styles.tableColPayee]}>
-            <Text style={styles.tableHeaderText}>支払先</Text>
-          </View>
-          <View style={[styles.tableCol, styles.tableColCategory]}>
-            <Text style={styles.tableHeaderText}>費目</Text>
-          </View>
-          <View style={[styles.tableCol, styles.tableColDescription]}>
-            <Text style={styles.tableHeaderText}>摘要</Text>
-          </View>
-          <View style={[styles.tableCol, styles.tableColReceipt]}>
-            <Text style={styles.tableHeaderText}>領収書</Text>
-          </View>
-          <View style={[styles.tableCol, styles.tableColBalance]}>
-            <Text style={styles.tableHeaderText}>残金</Text>
-          </View>
+      {/* ヘッダー行 - fixed属性で各ページに表示 */}
+      <View style={[styles.tableRow, styles.tableHeader, { borderLeft: '1px solid #000', borderRight: '1px solid #000', borderTop: '1px solid #000' }]} fixed>
+        <View style={[styles.tableCol, styles.tableColDate]}>
+          <Text style={styles.tableHeaderText}>日付</Text>
         </View>
+        <View style={[styles.tableCol, styles.tableColDeposit]}>
+          <Text style={styles.tableHeaderText}>入金</Text>
+        </View>
+        <View style={[styles.tableCol, styles.tableColPayment]}>
+          <Text style={styles.tableHeaderText}>支払い</Text>
+        </View>
+        <View style={[styles.tableCol, styles.tableColPayee]}>
+          <Text style={styles.tableHeaderText}>支払先</Text>
+        </View>
+        <View style={[styles.tableCol, styles.tableColCategory]}>
+          <Text style={styles.tableHeaderText}>費目</Text>
+        </View>
+        <View style={[styles.tableCol, styles.tableColDescription]}>
+          <Text style={styles.tableHeaderText}>摘要</Text>
+        </View>
+        <View style={[styles.tableCol, styles.tableColReceipt]}>
+          <Text style={styles.tableHeaderText}>領収書</Text>
+        </View>
+        <View style={[styles.tableCol, styles.tableColBalance]}>
+          <Text style={styles.tableHeaderText}>残金</Text>
+        </View>
+      </View>
 
-        {/* データ行 */}
+      {/* データ行 */}
+      <View style={{ borderLeft: '1px solid #000', borderRight: '1px solid #000', borderBottom: '1px solid #000' }}>
         {transactions.map((transaction, index) => (
           <View key={index} style={styles.tableRow}>
             <View style={[styles.tableCol, styles.tableColDate]}>
