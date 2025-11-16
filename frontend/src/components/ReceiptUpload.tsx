@@ -11,13 +11,17 @@ import {
   Button,
   Alert,
   TextField,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import ImageIcon from '@mui/icons-material/Image';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 import imageCompression from 'browser-image-compression';
 import api from '../services/api';
+import { CameraCapture } from './CameraCapture';
 
 interface ReceiptUploadProps {
   receiptUrl?: string | null;
@@ -50,6 +54,8 @@ export const ReceiptUpload = ({
   const [editableOcrData, setEditableOcrData] = useState<OcrData>({});
   const [previewImageUrl, setPreviewImageUrl] = useState<string>('');
   const [isPdfPreview, setIsPdfPreview] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,84 +77,7 @@ export const ReceiptUpload = ({
       return;
     }
 
-    setLoading(true);
-    setError('');
-
-    try {
-      let fileToUpload = file;
-
-      // 画像の場合は圧縮処理を実行
-      if (isImage) {
-        const options = {
-          maxSizeMB: 0.5, // 最大500KB
-          maxWidthOrHeight: 1920, // 最大幅または高さ
-          useWebWorker: true, // Web Workerを使用して処理を高速化
-          initialQuality: 0.8, // 初期画質
-        };
-
-        try {
-          console.log('元のファイルサイズ:', (file.size / 1024).toFixed(2), 'KB');
-          const compressedFile = await imageCompression(file, options);
-          console.log('圧縮後のファイルサイズ:', (compressedFile.size / 1024).toFixed(2), 'KB');
-          fileToUpload = compressedFile;
-        } catch (compressionError) {
-          console.error('画像圧縮エラー:', compressionError);
-          // 圧縮に失敗した場合は元のファイルを使用
-          fileToUpload = file;
-        }
-      }
-
-      console.log('サーバー側で枠検出・影除去・明るさ補正を実行します...');
-
-      // OCR処理を実行（失敗しても画像は保存できる）
-      let ocrData: OcrData = {};
-
-      try {
-        const formData = new FormData();
-        formData.append('receipt', fileToUpload);
-
-        const response = await api.post('/transactions/extract_receipt_data', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-
-        ocrData = {
-          date: response.data.date,
-          amount: response.data.amount,
-          payee: response.data.payee,
-          raw_text: response.data.raw_text,
-        };
-      } catch (ocrError: any) {
-        console.warn('OCR処理に失敗しましたが、画像は保存できます:', ocrError);
-        // OCRが失敗しても空のデータで続行（手動入力可能）
-        ocrData = {};
-      }
-
-      // ファイルのプレビューURLを作成（圧縮後のファイルを使用）
-      const fileUrl = URL.createObjectURL(fileToUpload);
-      setPreviewImageUrl(fileUrl);
-
-      // PDFかどうかを判定
-      const isPdf = fileToUpload.type === 'application/pdf';
-      setIsPdfPreview(isPdf);
-
-      // 確認ダイアログ用にデータを保存（圧縮後のファイルを使用）
-      setPendingFile(fileToUpload);
-      setPendingOcrData(ocrData);
-      setEditableOcrData(ocrData); // 編集可能データも初期化
-      setConfirmDialogOpen(true);
-
-      // 入力フィールドをリセット
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    } catch (err: any) {
-      console.error('ファイル処理エラー:', err);
-      setError(err.message || 'ファイル処理に失敗しました');
-    } finally {
-      setLoading(false);
-    }
+    await processFile(file);
   };
 
   const handleConfirmOcr = () => {
@@ -170,13 +99,113 @@ export const ReceiptUpload = ({
     }
   };
 
+  const handleUploadMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleUploadMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
+
   const handleCameraClick = () => {
+    handleUploadMenuClose();
+    setCameraOpen(true);
+  };
+
+  const handleFileUploadClick = () => {
+    handleUploadMenuClose();
     fileInputRef.current?.click();
+  };
+
+  const handleCameraCapture = async (file: File) => {
+    // カメラで撮影したファイルを処理
+    await processFile(file);
   };
 
   const handleDeleteClick = () => {
     if (window.confirm('レシート画像を削除しますか？')) {
       onReceiptDelete?.();
+    }
+  };
+
+  // ファイル処理を共通化
+  const processFile = async (file: File) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      let fileToUpload = file;
+
+      // 画像の場合は圧縮処理を実行
+      const isImage = file.type.startsWith('image/');
+      if (isImage) {
+        const options = {
+          maxSizeMB: 0.5,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+          initialQuality: 0.8,
+        };
+
+        try {
+          console.log('元のファイルサイズ:', (file.size / 1024).toFixed(2), 'KB');
+          const compressedFile = await imageCompression(file, options);
+          console.log('圧縮後のファイルサイズ:', (compressedFile.size / 1024).toFixed(2), 'KB');
+          fileToUpload = compressedFile;
+        } catch (compressionError) {
+          console.error('画像圧縮エラー:', compressionError);
+          fileToUpload = file;
+        }
+      }
+
+      console.log('サーバー側で枠検出・影除去・明るさ補正を実行します...');
+
+      // OCR処理を実行
+      let ocrData: OcrData = {};
+
+      try {
+        const formData = new FormData();
+        formData.append('receipt', fileToUpload);
+
+        const response = await api.post('/transactions/extract_receipt_data', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        ocrData = {
+          date: response.data.date,
+          amount: response.data.amount,
+          payee: response.data.payee,
+          raw_text: response.data.raw_text,
+        };
+      } catch (ocrError: any) {
+        console.warn('OCR処理に失敗しましたが、画像は保存できます:', ocrError);
+        ocrData = {};
+      }
+
+      // ファイルのプレビューURLを作成
+      const fileUrl = URL.createObjectURL(fileToUpload);
+      setPreviewImageUrl(fileUrl);
+
+      // PDFかどうかを判定
+      const isPdf = fileToUpload.type === 'application/pdf';
+      setIsPdfPreview(isPdf);
+
+      // 確認ダイアログ用にデータを保存
+      setPendingFile(fileToUpload);
+      setPendingOcrData(ocrData);
+      setEditableOcrData(ocrData);
+      setConfirmDialogOpen(true);
+
+      // 入力フィールドをリセット
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (err: any) {
+      console.error('ファイル処理エラー:', err);
+      setError(err.message || 'ファイル処理に失敗しました');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -203,7 +232,7 @@ export const ReceiptUpload = ({
       {/* カメラ/アップロードボタン */}
       <IconButton
         color="primary"
-        onClick={handleCameraClick}
+        onClick={handleUploadMenuOpen}
         disabled={disabled || loading}
         size="small"
         title={receiptUrl ? 'レシート画像を変更' : 'レシート画像をアップロード'}
@@ -216,6 +245,22 @@ export const ReceiptUpload = ({
           <CameraAltIcon />
         )}
       </IconButton>
+
+      {/* アップロード方法選択メニュー */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleUploadMenuClose}
+      >
+        <MenuItem onClick={handleCameraClick}>
+          <CameraAltIcon sx={{ mr: 1 }} />
+          カメラで撮影
+        </MenuItem>
+        <MenuItem onClick={handleFileUploadClick}>
+          <UploadFileIcon sx={{ mr: 1 }} />
+          ファイルを選択
+        </MenuItem>
+      </Menu>
 
       {/* 閲覧ボタン（画像がある場合） */}
       {receiptUrl && (
@@ -242,6 +287,13 @@ export const ReceiptUpload = ({
           <DeleteIcon />
         </IconButton>
       )}
+
+      {/* カメラキャプチャーダイアログ */}
+      <CameraCapture
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={handleCameraCapture}
+      />
 
       {/* エラー表示用のダイアログ */}
       <Dialog open={!!error} onClose={() => setError('')}>

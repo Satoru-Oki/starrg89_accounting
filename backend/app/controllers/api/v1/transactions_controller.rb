@@ -91,6 +91,22 @@ module Api
         end
       end
 
+      # カメラプレビュー用：レシート画像の枠検出のみ実行
+      def detect_receipt_corners
+        unless params[:receipt].present?
+          return render json: { error: 'レシート画像が必要です' }, status: :unprocessable_entity
+        end
+
+        processor = ReceiptImageProcessor.new
+        corners = processor.detect_document_corners_from_file(params[:receipt].tempfile.path)
+
+        if corners
+          render json: { corners: corners, detected: true }
+        else
+          render json: { corners: nil, detected: false }
+        end
+      end
+
       # 管理者がレシートディレクトリを一括閲覧
       def receipt_directory
         unless current_user.superadmin?

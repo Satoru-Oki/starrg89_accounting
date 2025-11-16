@@ -35,6 +35,11 @@ class ReceiptImageProcessor
     end
   end
 
+  # カメラプレビュー用：枠検出のみ実行（publicメソッド）
+  def detect_document_corners_from_file(image_path)
+    detect_document_corners(image_path)
+  end
+
   private
 
   # Google Cloud Vision APIでドキュメントの角を検出
@@ -140,7 +145,7 @@ class ReceiptImageProcessor
     end
   end
 
-  # 影除去と明るさ補正（しっかりモード）
+  # 影除去と明るさ補正（軽めの処理）
   def apply_shadow_removal_and_brightness(image_path)
     begin
       image = MiniMagick::Image.open(image_path)
@@ -148,34 +153,18 @@ class ReceiptImageProcessor
       # 出力ファイルパス
       output_path = Tempfile.new(['processed', '.jpg']).path
 
-      # しっかりした影除去と明るさ補正
+      # 軽めの補正（見た目を保ちつつOCR精度向上）
       image.combine_options do |c|
-        # グレースケール化（OCR精度向上）
-        c.colorspace 'Gray'
+        # コントラストストレッチ（軽め）
+        c.contrast_stretch '1%x0.5%'
 
-        # 影除去の前処理：モルフォロジー処理で影を軽減
-        c.morphology 'Close', 'Rectangle:1x5'
+        # 明るさとコントラストの調整（控えめ）
+        # 第1引数: 明るさ (+5は5%明るく)
+        # 第2引数: コントラスト (+10は10%コントラスト強化)
+        c.brightness_contrast '5x10'
 
-        # コントラストストレッチ（暗い部分を明るく）
-        c.contrast_stretch '2%x1%'
-
-        # 明るさとコントラストの調整（しっかりモード）
-        # 第1引数: 明るさ (+15は15%明るく)
-        # 第2引数: コントラスト (+25は25%コントラスト強化)
-        c.brightness_contrast '15x25'
-
-        # 正規化（自動レベル調整で最適化）
-        c.normalize
-
-        # 白レベルと黒レベルの調整（背景を白く、文字を黒く）
-        c.white_threshold '92%'
-        c.black_threshold '8%'
-
-        # シャープネス適用（文字をくっきり）
-        c.sharpen '0x1.5'
-
-        # ノイズ除去
-        c.despeckle
+        # 軽いシャープネス（文字をくっきり）
+        c.sharpen '0x0.5'
       end
 
       image.write(output_path)

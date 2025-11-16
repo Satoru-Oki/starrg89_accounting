@@ -13,6 +13,7 @@ Rails.application.routes.draw do
       resources :transactions do
         collection do
           post 'extract_receipt_data', to: 'transactions#extract_receipt_data'
+          post 'detect_receipt_corners', to: 'transactions#detect_receipt_corners'
           get 'receipt_directory', to: 'transactions#receipt_directory'
         end
       end
