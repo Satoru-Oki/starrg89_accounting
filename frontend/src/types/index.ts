@@ -29,6 +29,21 @@ export interface Category {
   type: 'expense' | 'income';
 }
 
+export interface PaymentDetail {
+  id?: number;
+  deposit_date: string;
+  sales_amount?: number;
+  commission_fee?: number;
+  consumption_tax?: number;
+  transfer_amount?: number;
+  user_id?: number;
+  user_name?: string;
+  payment_file_url?: string | null;
+  is_pdf?: boolean;
+  updated_at?: string;
+  created_at?: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   login: (userId: string, password: string) => Promise<void>;

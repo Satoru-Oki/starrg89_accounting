@@ -15,8 +15,9 @@ import FolderIcon from '@mui/icons-material/Folder';
 import { useAuth } from '../contexts/AuthContext';
 import TransactionTable from './TransactionTable';
 import InvoiceTable from './InvoiceTable';
+import PaymentDetailsTable from './PaymentDetailsTable';
 
-type ViewMode = 'receipts' | 'invoices';
+type ViewMode = 'receipts' | 'invoices' | 'payment_details';
 
 const MainTable = () => {
   const { user, logout } = useAuth();
@@ -33,21 +34,27 @@ const MainTable = () => {
                      user?.user_id === 'risa' ||
                      user?.user_id === 'oki';
 
+  // スーパー管理者のみ収納明細を表示
+  const canViewPaymentDetails = user?.role === 'superadmin';
+
   useEffect(() => {
     // URLパスに基づいて初期表示モードを設定
     if (location.pathname === '/invoices') {
       setViewMode('invoices');
+    } else if (location.pathname === '/payment-details') {
+      setViewMode('payment_details');
     } else {
       setViewMode('receipts');
     }
   }, [location.pathname]);
 
-  const handleViewChange = () => {
-    const newView = viewMode === 'receipts' ? 'invoices' : 'receipts';
-    setViewMode(newView);
+  const handleViewChange = (mode: ViewMode) => {
+    setViewMode(mode);
     // URLも更新
-    if (newView === 'invoices') {
+    if (mode === 'invoices') {
       navigate('/invoices', { replace: true });
+    } else if (mode === 'payment_details') {
+      navigate('/payment-details', { replace: true });
     } else {
       navigate('/transactions', { replace: true });
     }
@@ -61,8 +68,10 @@ const MainTable = () => {
   const handleDirectoryClick = () => {
     if (viewMode === 'receipts') {
       navigate('/receipts');
-    } else {
+    } else if (viewMode === 'invoices') {
       navigate('/invoice-directory');
+    } else if (viewMode === 'payment_details') {
+      navigate('/payment-directory');
     }
   };
 
@@ -82,19 +91,51 @@ const MainTable = () => {
             Star R.G 89 経理清算システム
           </Typography>
           {canToggle && (
+            <>
+              <Button
+                variant="contained"
+                onClick={() => handleViewChange('receipts')}
+                sx={{
+                  mr: 1,
+                  bgcolor: viewMode === 'receipts' ? '#4caf50' : '#e0e0e0',
+                  color: viewMode === 'receipts' ? 'white' : '#000',
+                  '&:hover': {
+                    bgcolor: viewMode === 'receipts' ? '#45a049' : '#d0d0d0',
+                  },
+                }}
+              >
+                領収書
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => handleViewChange('invoices')}
+                sx={{
+                  mr: canViewPaymentDetails ? 1 : 2,
+                  bgcolor: viewMode === 'invoices' ? '#ffd54f' : '#e0e0e0',
+                  color: viewMode === 'invoices' ? '#000' : '#000',
+                  '&:hover': {
+                    bgcolor: viewMode === 'invoices' ? '#ffc107' : '#d0d0d0',
+                  },
+                }}
+              >
+                請求書
+              </Button>
+            </>
+          )}
+          {canViewPaymentDetails && (
             <Button
               variant="contained"
-              onClick={handleViewChange}
+              onClick={() => handleViewChange('payment_details')}
               sx={{
                 mr: 2,
-                bgcolor: viewMode === 'receipts' ? '#4caf50' : '#ffd54f',
-                color: viewMode === 'receipts' ? 'white' : '#000',
+                bgcolor: viewMode === 'payment_details' ? '#9c27b0' : '#e0e0e0',
+                color: viewMode === 'payment_details' ? 'white' : '#000',
                 '&:hover': {
-                  bgcolor: viewMode === 'receipts' ? '#45a049' : '#ffc107',
+                  bgcolor: viewMode === 'payment_details' ? '#7b1fa2' : '#d0d0d0',
                 },
               }}
             >
-              {viewMode === 'receipts' ? '領収書' : '請求書'}
+              収納明細
             </Button>
           )}
           {(user?.role === 'superadmin') && (
@@ -112,7 +153,7 @@ const MainTable = () => {
                 },
               }}
             >
-              {viewMode === 'receipts' ? 'レシートディレクトリ' : '請求書ディレクトリ'}
+              {viewMode === 'receipts' ? 'レシートディレクトリ' : viewMode === 'invoices' ? '請求書ディレクトリ' : '収納明細ディレクトリ'}
             </Button>
           )}
           <Box sx={{ flexGrow: 1 }} />
@@ -138,7 +179,9 @@ const MainTable = () => {
           </IconButton>
         </Toolbar>
       </AppBar>
-      {viewMode === 'receipts' ? <TransactionTable hideAppBar /> : <InvoiceTable hideAppBar />}
+      {viewMode === 'receipts' && <TransactionTable hideAppBar />}
+      {viewMode === 'invoices' && <InvoiceTable hideAppBar />}
+      {viewMode === 'payment_details' && <PaymentDetailsTable hideAppBar />}
     </Box>
   );
 };

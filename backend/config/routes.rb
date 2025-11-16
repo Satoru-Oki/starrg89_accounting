@@ -25,6 +25,14 @@ Rails.application.routes.draw do
           get 'invoice_directory', to: 'invoices#invoice_directory'
         end
       end
+
+      # 収納明細管理（スーパー管理者のみ）
+      resources :payment_details do
+        collection do
+          post 'extract_payment_data', to: 'payment_details#extract_payment_data'
+          get 'payment_directory', to: 'payment_details#payment_directory'
+        end
+      end
     end
   end
 
