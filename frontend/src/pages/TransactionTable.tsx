@@ -199,7 +199,17 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
     };
 
     // 最下段に追加
-    setAllRows([...allRows, newRow]);
+    const updatedRows = [...allRows, newRow];
+    setAllRows(updatedRows);
+
+    // 追加された行までスクロール
+    setTimeout(() => {
+      if (apiRef.current) {
+        // 新しい行はフィルタリング後の最後に表示されるので、最後の行までスクロール
+        // 十分大きな数値を指定して最下部までスクロール
+        apiRef.current.scrollToIndexes({ rowIndex: 9999 });
+      }
+    }, 150);
   };
 
   const handleSaveRow = async (newRow: any) => {
