@@ -220,8 +220,8 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
         const maxWidth = Math.round(Math.max(width1, width2));
         const maxHeight = Math.round(Math.max(height1, height2));
 
-        // 最小解像度を確保（800px以上）
-        const scale = Math.max(1, 800 / Math.min(maxWidth, maxHeight));
+        // 最小解像度を確保（1200px以上で高品質）
+        const scale = Math.max(1, 1200 / Math.min(maxWidth, maxHeight));
         const finalWidth = Math.round(maxWidth * scale);
         const finalHeight = Math.round(maxHeight * scale);
 
@@ -236,10 +236,10 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
         // 透視変換行列を計算
         const M = cv.getPerspectiveTransform(srcPoints, dstPoints);
 
-        // 変換を適用（高解像度で）
+        // 変換を適用（INTER_CUBICで最高品質）
         const dst = new cv.Mat();
         const dsize = new cv.Size(finalWidth, finalHeight);
-        cv.warpPerspective(src, dst, M, dsize, cv.INTER_LINEAR);
+        cv.warpPerspective(src, dst, M, dsize, cv.INTER_CUBIC);
 
         // 結果を新しいcanvasに描画
         const trimmedCanvas = document.createElement('canvas');
@@ -265,11 +265,11 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       }
 
-      // canvasをBlobに変換（高品質）
+      // canvasをBlobに変換（最高品質）
       const blob = await new Promise<Blob>((resolve) => {
         finalCanvas.toBlob((blob) => {
           resolve(blob!);
-        }, 'image/jpeg', 0.95);
+        }, 'image/jpeg', 0.98);
       });
 
       // BlobをFileに変換
