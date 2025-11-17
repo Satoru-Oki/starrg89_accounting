@@ -166,8 +166,8 @@ const InvoiceTable = ({ hideAppBar = false }: InvoiceTableProps = {}) => {
 
   // カメラキャプチャイベントのリスナー
   useEffect(() => {
-    const handleCameraCapture = (event: any) => {
-      const { file, mode, ocrData } = event.detail;
+    const handleCameraCapture = async (event: any) => {
+      const { file, mode, ocrData, autoSave } = event.detail;
       if (mode === 'invoices') {
         // 新しい行を追加してファイルとOCRデータを設定
         const newId = `new-${Date.now()}`;
@@ -198,8 +198,22 @@ const InvoiceTable = ({ hideAppBar = false }: InvoiceTableProps = {}) => {
           invoiceFile: file, // カメラで撮影したファイルを設定
         };
 
-        const updatedRows = [...allRows, newRow];
-        setAllRows(updatedRows);
+        // 自動保存フラグがある場合は即座にデータベースに保存
+        if (autoSave) {
+          try {
+            const savedRow = await handleSaveRow(newRow);
+            const updatedRows = [...allRows, savedRow];
+            setAllRows(updatedRows);
+          } catch (error) {
+            console.error('自動保存エラー:', error);
+            // エラーでも行は追加する
+            const updatedRows = [...allRows, newRow];
+            setAllRows(updatedRows);
+          }
+        } else {
+          const updatedRows = [...allRows, newRow];
+          setAllRows(updatedRows);
+        }
       }
     };
 

@@ -159,15 +159,16 @@ const MainTable = () => {
     }
   };
 
-  // OCR確認後、各テーブルにファイルとOCRデータを渡す
+  // OCR確認後、各テーブルにファイルとOCRデータを渡して自動保存
   const handleConfirmOcr = () => {
     if (pendingFile) {
-      // 各テーブルにファイルとOCRデータを渡す
+      // 各テーブルにファイルとOCRデータを渡す（autoSaveフラグ付き）
       window.dispatchEvent(new CustomEvent('cameraCapture', {
         detail: {
           file: pendingFile,
           mode: viewMode,
-          ocrData: editableOcrData
+          ocrData: editableOcrData,
+          autoSave: true // 自動保存フラグ
         }
       }));
     }

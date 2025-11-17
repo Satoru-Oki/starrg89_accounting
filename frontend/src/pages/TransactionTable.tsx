@@ -181,8 +181,8 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
 
   // カメラキャプチャイベントのリスナー
   useEffect(() => {
-    const handleCameraCapture = (event: any) => {
-      const { file, mode, ocrData } = event.detail;
+    const handleCameraCapture = async (event: any) => {
+      const { file, mode, ocrData, autoSave } = event.detail;
       if (mode === 'receipts') {
         // 新しい行を追加してファイルとOCRデータを設定
         const newId = `new-${Date.now()}`;
@@ -216,9 +216,25 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
           receiptFile: file, // カメラで撮影したファイルを設定
         };
 
-        const updatedRows = [...allRows, newRow];
-        setAllRows(updatedRows);
-        scrollToNewRow.current = true;
+        // 自動保存フラグがある場合は即座にデータベースに保存
+        if (autoSave) {
+          try {
+            const savedRow = await handleSaveRow(newRow);
+            const updatedRows = [...allRows, savedRow];
+            setAllRows(updatedRows);
+            scrollToNewRow.current = true;
+          } catch (error) {
+            console.error('自動保存エラー:', error);
+            // エラーでも行は追加する
+            const updatedRows = [...allRows, newRow];
+            setAllRows(updatedRows);
+            scrollToNewRow.current = true;
+          }
+        } else {
+          const updatedRows = [...allRows, newRow];
+          setAllRows(updatedRows);
+          scrollToNewRow.current = true;
+        }
       }
     };
 
