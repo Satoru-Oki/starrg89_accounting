@@ -56,14 +56,29 @@ export const detectReceiptCorners = (
   let canvas: any = null;
 
   try {
-    // ビデオから画像を取得（canvasを経由）
+    // 高解像度での処理を軽くするため、検出時は最大1920pxに縮小
+    const originalWidth = videoElement.videoWidth;
+    const originalHeight = videoElement.videoHeight;
+    const maxDimension = 1920;
+
+    let scale = 1;
+    let processingWidth = originalWidth;
+    let processingHeight = originalHeight;
+
+    if (originalWidth > maxDimension || originalHeight > maxDimension) {
+      scale = Math.min(maxDimension / originalWidth, maxDimension / originalHeight);
+      processingWidth = Math.round(originalWidth * scale);
+      processingHeight = Math.round(originalHeight * scale);
+    }
+
+    // ビデオから画像を取得（canvasを経由、必要に応じて縮小）
     canvas = document.createElement('canvas');
-    canvas.width = videoElement.videoWidth;
-    canvas.height = videoElement.videoHeight;
+    canvas.width = processingWidth;
+    canvas.height = processingHeight;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(videoElement, 0, 0, processingWidth, processingHeight);
 
     // canvasからMatを作成
     src = cv.imread(canvas);
@@ -100,8 +115,8 @@ export const detectReceiptCorners = (
     // 最大スコアの四角形を検出（外側の白い紙を優先）
     let maxScore = 0;
     let bestCorners: Corner[] | null = null;
-    const imageArea = videoElement.videoWidth * videoElement.videoHeight;
-    const imagePerimeter = 2 * (videoElement.videoWidth + videoElement.videoHeight);
+    const imageArea = processingWidth * processingHeight;
+    const imagePerimeter = 2 * (processingWidth + processingHeight);
 
     for (let i = 0; i < contours.size(); i++) {
       const contour = contours.get(i);
@@ -146,6 +161,14 @@ export const detectReceiptCorners = (
 
       approx.delete();
       contour.delete();
+    }
+
+    // 縮小して処理した場合は、座標を元の解像度にスケールバック
+    if (bestCorners && scale !== 1) {
+      bestCorners = bestCorners.map(corner => ({
+        x: Math.round(corner.x / scale),
+        y: Math.round(corner.y / scale)
+      }));
     }
 
     return bestCorners;
