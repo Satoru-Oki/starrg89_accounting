@@ -128,9 +128,10 @@ export const detectReceiptCorners = (
       const contour = contours.get(i);
       const area = cv.contourArea(contour);
 
-      // 画像の3%以上、90%以下の面積がある輪郭のみ対象
-      const minArea = imageArea * 0.03;
-      const maxArea = imageArea * 0.9;
+      // 画像の40%以上、95%以下の面積がある輪郭のみ対象
+      // （内部の小さな四角形を完全に除外し、ドキュメント全体のみを検出）
+      const minArea = imageArea * 0.40;
+      const maxArea = imageArea * 0.95;
 
       if (area < minArea || area > maxArea) {
         contour.delete();
@@ -144,22 +145,35 @@ export const detectReceiptCorners = (
 
       // 4つの角がある場合のみ処理
       if (approx.rows === 4) {
-        // スコアリング：面積 + 周囲長（外側の大きな四角形を優先）
+        // 4つの角の座標を取得
+        const corners: Corner[] = [];
+        for (let j = 0; j < 4; j++) {
+          corners.push({
+            x: approx.data32S[j * 2],
+            y: approx.data32S[j * 2 + 1],
+          });
+        }
+
+        // スコアリング：面積を最重視（大きな外側の四角形を優先）
         const areaScore = area / imageArea;
         const perimeterScore = perimeter / imagePerimeter;
-        const score = areaScore * 0.65 + perimeterScore * 0.35;
+
+        // 画面中央からの距離スコア（中央付近の四角形を優先）
+        const centerX = processingWidth / 2;
+        const centerY = processingHeight / 2;
+        const rectCenterX = corners.reduce((sum, c) => sum + c.x, 0) / 4;
+        const rectCenterY = corners.reduce((sum, c) => sum + c.y, 0) / 4;
+        const distanceFromCenter = Math.sqrt(
+          Math.pow(rectCenterX - centerX, 2) + Math.pow(rectCenterY - centerY, 2)
+        );
+        const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
+        const centerScore = 1 - (distanceFromCenter / maxDistance);
+
+        // 面積を最重視（0.8）、中央付近を少し優先（0.1）、周囲長を少し考慮（0.1）
+        const score = areaScore * 0.8 + centerScore * 0.1 + perimeterScore * 0.1;
 
         if (score > maxScore) {
           maxScore = score;
-
-          // 4つの角の座標を取得
-          const corners: Corner[] = [];
-          for (let j = 0; j < 4; j++) {
-            corners.push({
-              x: approx.data32S[j * 2],
-              y: approx.data32S[j * 2 + 1],
-            });
-          }
 
           // 角を時計回りに並べ替え（左上、右上、右下、左下）
           bestCorners = sortCorners(corners);
