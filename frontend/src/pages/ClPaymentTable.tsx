@@ -217,7 +217,7 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
         apiRef.current.scrollToIndexes({ rowIndex: filteredRows.length - 1 });
 
         scrollToNewRow.current = false;
-      }, 100);
+      }, 50);
     }
   }, [filteredRows, apiRef]);
 

@@ -32,7 +32,7 @@ const theme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          transition: 'all 0.15s ease-in-out',
+          transition: 'all 0.1s ease-in-out',
           '&:active': {
             transform: 'scale(0.95)',
             opacity: 0.8,
@@ -43,7 +43,7 @@ const theme = createTheme({
     MuiIconButton: {
       styleOverrides: {
         root: {
-          transition: 'all 0.15s ease-in-out',
+          transition: 'all 0.1s ease-in-out',
           '&:active': {
             transform: 'scale(0.9)',
             opacity: 0.7,

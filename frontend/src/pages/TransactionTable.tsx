@@ -260,7 +260,7 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
         apiRef.current.scrollToIndexes({ rowIndex: filteredRows.length - 1 });
 
         scrollToNewRow.current = false;
-      }, 100);
+      }, 50);
     }
   }, [filteredRows, apiRef]);
 

@@ -243,7 +243,7 @@ const InvoiceTable = ({ hideAppBar = false }: InvoiceTableProps = {}) => {
         apiRef.current.scrollToIndexes({ rowIndex: filteredRows.length - 1 });
 
         scrollToNewRow.current = false;
-      }, 100);
+      }, 50);
     }
   }, [filteredRows, apiRef]);
 
