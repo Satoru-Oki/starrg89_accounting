@@ -49,6 +49,7 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
   const [allRows, setAllRows] = useState<GridRowsProp>([]);
   const [error, setError] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [selectedUser, setSelectedUser] = useState<string>('all');
 
   useEffect(() => {
     fetchClPayments();
@@ -98,7 +99,20 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
     return Array.from(months).sort().reverse();
   }, [allRows]);
 
-  // 月別にフィルタリングされたデータ
+  // ユーザーのリストを生成
+  const availableUsers = useMemo(() => {
+    const users = new Map<number, string>();
+    allRows.forEach((row: any) => {
+      if (row.user_id && row.user_name) {
+        users.set(row.user_id, row.user_name);
+      }
+    });
+    return Array.from(users.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [allRows]);
+
+  // 月別・ユーザー別にフィルタリングされたデータ
   const filteredRows = useMemo(() => {
     return allRows.filter((row: any) => {
       // 月フィルター
@@ -115,9 +129,15 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
         }
       }
 
+      // ユーザーフィルター
+      if (selectedUser !== 'all') {
+        if (row.isNew) return true;
+        if (row.user_id !== parseInt(selectedUser)) return false;
+      }
+
       return true;
     });
-  }, [allRows, selectedMonth]);
+  }, [allRows, selectedMonth, selectedUser]);
 
   const handleAddRow = () => {
     const newId = `new-${Date.now()}`;
@@ -259,135 +279,155 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
     navigate('/cl-payment-directory');
   };
 
-  const columns: GridColDef[] = useMemo(() => [
-    {
-      field: 'payment_date',
-      headerName: '決済日付',
-      width: 150,
-      type: 'date',
-      editable: true,
-      valueFormatter: (params) => {
-        if (!params.value) return '';
-        const date = params.value instanceof Date ? params.value : new Date(params.value);
-        return isNaN(date.getTime()) ? '' : formatDateToLocalString(date);
+  const columns: GridColDef[] = useMemo(() => {
+    const baseColumns: GridColDef[] = [];
+
+    // スーパー管理者または管理者の場合はユーザー名列を一番左に追加
+    if (user?.role === 'superadmin' || user?.role === 'admin') {
+      baseColumns.push({
+        field: 'user_name',
+        headerName: 'ユーザー',
+        width: 120,
+        editable: false,
+      });
+    }
+
+    baseColumns.push(
+      {
+        field: 'payment_date',
+        headerName: '決済日付',
+        width: 150,
+        type: 'date',
+        editable: true,
+        valueFormatter: (params) => {
+          if (!params.value) return '';
+          const date = params.value instanceof Date ? params.value : new Date(params.value);
+          return isNaN(date.getTime()) ? '' : formatDateToLocalString(date);
+        },
       },
-    },
-    {
-      field: 'payment_amount',
-      headerName: '決済額',
-      width: 130,
-      type: 'number',
-      editable: true,
-      align: 'right',
-      headerAlign: 'right',
-    },
-    {
-      field: 'vendor',
-      headerName: '注文先',
-      width: 200,
-      editable: true,
-    },
-    {
-      field: 'description',
-      headerName: '摘要',
-      width: 250,
-      editable: true,
-    },
-    {
-      field: 'payment_file_url',
-      headerName: '支払い内容',
-      width: 150,
-      renderCell: (params) => {
-        if (!params.row.payment_file_url) {
+      {
+        field: 'payment_amount',
+        headerName: '決済額',
+        width: 150,
+        type: 'number',
+        editable: true,
+        align: 'right',
+        headerAlign: 'right',
+      },
+      {
+        field: 'vendor',
+        headerName: '注文先',
+        width: 200,
+        editable: true,
+      },
+      {
+        field: 'description',
+        headerName: '摘要',
+        flex: 1,
+        minWidth: 300,
+        editable: true,
+      }
+    );
+
+    baseColumns.push(
+      {
+        field: 'payment_file_url',
+        headerName: '支払い内容',
+        width: 150,
+        renderCell: (params) => {
+          if (!params.row.payment_file_url) {
+            return (
+              <Box
+                component="label"
+                sx={{
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '100%',
+                  height: '100%',
+                  '&:hover': { bgcolor: 'action.hover' },
+                }}
+              >
+                <input
+                  type="file"
+                  hidden
+                  accept="application/pdf,image/jpeg,image/png,image/jpg"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const updatedRow = { ...params.row, paymentFile: file, remove_payment_file: false };
+                      handleSaveRow(updatedRow);
+                    }
+                  }}
+                />
+                <Typography variant="caption" color="primary">
+                  ファイル追加
+                </Typography>
+              </Box>
+            );
+          }
+
           return (
-            <Box
-              component="label"
-              sx={{
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '100%',
-                height: '100%',
-                '&:hover': { bgcolor: 'action.hover' },
-              }}
-            >
-              <input
-                type="file"
-                hidden
-                accept="application/pdf,image/jpeg,image/png,image/jpg"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const updatedRow = { ...params.row, paymentFile: file, remove_payment_file: false };
+            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+              <IconButton
+                size="small"
+                onClick={() => window.open(params.row.payment_file_url, '_blank')}
+                title="ファイルを開く"
+              >
+                {params.row.is_pdf ? (
+                  <PictureAsPdfIcon fontSize="small" />
+                ) : (
+                  <ImageIcon fontSize="small" />
+                )}
+              </IconButton>
+              <IconButton
+                size="small"
+                color="error"
+                onClick={() => {
+                  if (window.confirm('ファイルを削除しますか?')) {
+                    const updatedRow = {
+                      ...params.row,
+                      paymentFile: null,
+                      remove_payment_file: true,
+                      payment_date: null,
+                      payment_amount: null,
+                      vendor: '',
+                      description: ''
+                    };
                     handleSaveRow(updatedRow);
                   }
                 }}
-              />
-              <Typography variant="caption" color="primary">
-                ファイル追加
-              </Typography>
+                title="ファイルを削除"
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
             </Box>
           );
-        }
-
-        return (
-          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-            <IconButton
-              size="small"
-              onClick={() => window.open(params.row.payment_file_url, '_blank')}
-              title="ファイルを開く"
-            >
-              {params.row.is_pdf ? (
-                <PictureAsPdfIcon fontSize="small" />
-              ) : (
-                <ImageIcon fontSize="small" />
-              )}
-            </IconButton>
-            <IconButton
-              size="small"
-              color="error"
-              onClick={() => {
-                if (window.confirm('ファイルを削除しますか?')) {
-                  const updatedRow = {
-                    ...params.row,
-                    paymentFile: null,
-                    remove_payment_file: true,
-                    payment_date: null,
-                    payment_amount: null,
-                    vendor: '',
-                    description: ''
-                  };
-                  handleSaveRow(updatedRow);
-                }
-              }}
-              title="ファイルを削除"
-            >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        );
+        },
       },
-    },
-    {
-      field: 'actions',
-      type: 'actions',
-      headerName: '操作',
-      width: 100,
-      getActions: (params) => [
-        <GridActionsCellItem
-          icon={<SaveIcon />}
-          label="保存"
-          onClick={() => handleSaveRow(params.row)}
-        />,
-        <GridActionsCellItem
-          icon={<DeleteIcon />}
-          label="削除"
-          onClick={() => handleDeleteRow(params.id)}
-        />,
-      ],
-    },
-  ], [filteredRows]);
+      {
+        field: 'actions',
+        type: 'actions',
+        headerName: '操作',
+        width: 100,
+        getActions: (params) => [
+          <GridActionsCellItem
+            icon={<SaveIcon />}
+            label="保存"
+            onClick={() => handleSaveRow(params.row)}
+          />,
+          <GridActionsCellItem
+            icon={<DeleteIcon />}
+            label="削除"
+            onClick={() => handleDeleteRow(params.id)}
+          />,
+        ],
+      }
+    );
+
+    return baseColumns;
+  }, [filteredRows, user]);
 
   return (
     <Box>
@@ -452,6 +492,23 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
               ))}
             </Select>
           </FormControl>
+          {(user?.role === 'superadmin' || user?.role === 'admin') && (
+            <FormControl sx={{ minWidth: 200 }}>
+              <InputLabel>ユーザーでフィルタ</InputLabel>
+              <Select
+                value={selectedUser}
+                label="ユーザーでフィルタ"
+                onChange={(e) => setSelectedUser(e.target.value)}
+              >
+                <MenuItem value="all">すべて</MenuItem>
+                {availableUsers.map((u) => (
+                  <MenuItem key={u.id} value={u.id.toString()}>
+                    {u.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
         </Box>
         <Box sx={{ height: 'calc(100vh - 250px)', width: '100%' }}>
           <DataGrid
@@ -467,6 +524,16 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
               pagination: { paginationModel: { pageSize: 100 } },
             }}
             pageSizeOptions={[10, 25, 50, 100]}
+            sx={{
+              '& .MuiDataGrid-cell': {
+                borderRight: '1px solid #e0e0e0',
+              },
+              '& .MuiDataGrid-columnHeader': {
+                borderRight: '1px solid #e0e0e0',
+                backgroundColor: '#f5f5f5',
+                fontWeight: 'bold',
+              },
+            }}
           />
         </Box>
       </Container>
