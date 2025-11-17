@@ -128,10 +128,10 @@ export const detectReceiptCorners = (
       const contour = contours.get(i);
       const area = cv.contourArea(contour);
 
-      // 画像の15%以上、95%以下の面積がある輪郭のみ対象
-      // （内部の小さな四角形を除外しつつ、縦画面での横長ドキュメントも検出可能に）
+      // 画像の15%以上、90%以下の面積がある輪郭のみ対象
+      // （内部の小さな四角形を除外しつつ、大きすぎる範囲も除外）
       const minArea = imageArea * 0.15;
-      const maxArea = imageArea * 0.95;
+      const maxArea = imageArea * 0.90;
 
       if (area < minArea || area > maxArea) {
         contour.delete();

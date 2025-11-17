@@ -525,7 +525,7 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
           </Toolbar>
         </AppBar>
       )}
-      <Container maxWidth={false} sx={{ mt: 2, px: { xs: 1, sm: 2 } }}>
+      <Container maxWidth="xl" sx={{ mt: isMobile ? 1 : 3, mb: 3, px: isMobile ? 1 : 3 }}>
         {error && (
           <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2 }}>
             {error}
@@ -568,7 +568,12 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
             </FormControl>
           )}
         </Box>
-        <Box sx={{ height: 'calc(100vh - 250px)', width: '100%' }}>
+        <Box sx={{
+          height: isMobile ? 'calc(100vh - 280px)' : 600,
+          width: '100%',
+          bgcolor: 'background.paper',
+          overflow: 'auto'
+        }}>
           <DataGrid
             apiRef={apiRef}
             rows={filteredRows}
