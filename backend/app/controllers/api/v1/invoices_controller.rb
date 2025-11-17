@@ -242,7 +242,7 @@ module Api
           # Vipsで画像を処理
           processed = ImageProcessing::Vips
             .source(tempfile.path)
-            .resize_to_limit(1200, 1200)
+            .resize_to_limit(2400, 2400)
             .convert('jpg')
             .saver(quality: 85)
             .call
@@ -292,7 +292,7 @@ module Api
           # Vipsで画像を処理
           processed = ImageProcessing::Vips
             .source(uploaded_file.tempfile.path)
-            .resize_to_limit(1200, 1200)
+            .resize_to_limit(2400, 2400)
             .convert('jpg')
             .saver(quality: 85)
             .call
