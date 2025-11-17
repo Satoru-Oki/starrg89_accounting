@@ -28,6 +28,30 @@ const theme = createTheme({
       'sans-serif',
     ].join(','),
   },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          transition: 'all 0.15s ease-in-out',
+          '&:active': {
+            transform: 'scale(0.95)',
+            opacity: 0.8,
+          },
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          transition: 'all 0.15s ease-in-out',
+          '&:active': {
+            transform: 'scale(0.9)',
+            opacity: 0.7,
+          },
+        },
+      },
+    },
+  },
 });
 
 function App() {
