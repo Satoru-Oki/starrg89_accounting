@@ -163,7 +163,7 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
     if (corners && corners.length === 4) {
       // 枠を描画
       ctx.strokeStyle = '#00ff00';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 5;
       ctx.beginPath();
       ctx.moveTo(corners[0].x, corners[0].y);
       ctx.lineTo(corners[1].x, corners[1].y);
@@ -176,7 +176,7 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       ctx.fillStyle = '#00ff00';
       corners.forEach((corner) => {
         ctx.beginPath();
-        ctx.arc(corner.x, corner.y, 8, 0, 2 * Math.PI);
+        ctx.arc(corner.x, corner.y, 10, 0, 2 * Math.PI);
         ctx.fill();
       });
     }
