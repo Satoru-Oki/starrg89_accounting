@@ -36,7 +36,12 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
   const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facingMode },
+        video: {
+          facingMode: facingMode,
+          width: { ideal: 3840, min: 1920 },  // 4K理想、最低Full HD
+          height: { ideal: 2160, min: 1080 },
+          aspectRatio: { ideal: 1.777777778 }, // 16:9
+        },
       });
 
       if (videoRef.current) {

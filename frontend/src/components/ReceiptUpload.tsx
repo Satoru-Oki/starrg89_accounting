@@ -140,10 +140,10 @@ export const ReceiptUpload = ({
       const isImage = file.type.startsWith('image/');
       if (isImage) {
         const options = {
-          maxSizeMB: 0.5,
-          maxWidthOrHeight: 1920,
+          maxSizeMB: 0.7,  // 0.5MB→0.7MBに少し増加
+          maxWidthOrHeight: 2400,  // 1920px→2400pxに向上（細かい文字が読める）
           useWebWorker: true,
-          initialQuality: 0.8,
+          initialQuality: 0.85,  // 0.8→0.85に品質向上
         };
 
         try {
