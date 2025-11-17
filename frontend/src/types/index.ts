@@ -2,7 +2,8 @@ export interface User {
   id: number;
   email: string;
   name: string;
-  role: 'admin' | 'user';
+  role: 'superadmin' | 'admin' | 'user';
+  user_id?: string;
 }
 
 export interface Transaction {
@@ -36,6 +37,20 @@ export interface PaymentDetail {
   commission_fee?: number;
   consumption_tax?: number;
   transfer_amount?: number;
+  user_id?: number;
+  user_name?: string;
+  payment_file_url?: string | null;
+  is_pdf?: boolean;
+  updated_at?: string;
+  created_at?: string;
+}
+
+export interface ClPayment {
+  id?: number;
+  payment_date: string;
+  payment_amount?: number;
+  vendor?: string;
+  description?: string;
   user_id?: number;
   user_name?: string;
   payment_file_url?: string | null;

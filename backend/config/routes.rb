@@ -33,6 +33,13 @@ Rails.application.routes.draw do
           get 'payment_directory', to: 'payment_details#payment_directory'
         end
       end
+
+      # CL決済管理
+      resources :cl_payments do
+        collection do
+          get 'cl_payment_directory', to: 'cl_payments#cl_payment_directory'
+        end
+      end
     end
   end
 

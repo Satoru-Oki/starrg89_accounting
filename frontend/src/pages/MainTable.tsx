@@ -16,8 +16,9 @@ import { useAuth } from '../contexts/AuthContext';
 import TransactionTable from './TransactionTable';
 import InvoiceTable from './InvoiceTable';
 import PaymentDetailsTable from './PaymentDetailsTable';
+import ClPaymentTable from './ClPaymentTable';
 
-type ViewMode = 'receipts' | 'invoices' | 'payment_details';
+type ViewMode = 'receipts' | 'invoices' | 'cl_payments' | 'payment_details';
 
 const MainTable = () => {
   const { user, logout } = useAuth();
@@ -41,6 +42,8 @@ const MainTable = () => {
     // URLパスに基づいて初期表示モードを設定
     if (location.pathname === '/invoices') {
       setViewMode('invoices');
+    } else if (location.pathname === '/cl-payments') {
+      setViewMode('cl_payments');
     } else if (location.pathname === '/payment-details') {
       setViewMode('payment_details');
     } else {
@@ -53,6 +56,8 @@ const MainTable = () => {
     // URLも更新
     if (mode === 'invoices') {
       navigate('/invoices', { replace: true });
+    } else if (mode === 'cl_payments') {
+      navigate('/cl-payments', { replace: true });
     } else if (mode === 'payment_details') {
       navigate('/payment-details', { replace: true });
     } else {
@@ -70,6 +75,8 @@ const MainTable = () => {
       navigate('/receipts');
     } else if (viewMode === 'invoices') {
       navigate('/invoice-directory');
+    } else if (viewMode === 'cl_payments') {
+      navigate('/cl-payment-directory');
     } else if (viewMode === 'payment_details') {
       navigate('/payment-directory');
     }
@@ -110,7 +117,7 @@ const MainTable = () => {
                 variant="contained"
                 onClick={() => handleViewChange('invoices')}
                 sx={{
-                  mr: canViewPaymentDetails ? 1 : 2,
+                  mr: 1,
                   bgcolor: viewMode === 'invoices' ? '#ffd54f' : '#e0e0e0',
                   color: viewMode === 'invoices' ? '#000' : '#000',
                   '&:hover': {
@@ -119,6 +126,21 @@ const MainTable = () => {
                 }}
               >
                 請求書
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => handleViewChange('cl_payments')}
+                sx={{
+                  mr: canViewPaymentDetails ? 1 : 2,
+                  bgcolor: viewMode === 'cl_payments' ? '#ff9800' : '#e0e0e0',
+                  color: viewMode === 'cl_payments' ? 'white' : '#000',
+                  backgroundImage: viewMode === 'cl_payments' ? 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.1) 10px, rgba(255,255,255,.1) 20px)' : 'none',
+                  '&:hover': {
+                    bgcolor: viewMode === 'cl_payments' ? '#f57c00' : '#d0d0d0',
+                  },
+                }}
+              >
+                CL決済
               </Button>
             </>
           )}
@@ -153,11 +175,11 @@ const MainTable = () => {
                 },
               }}
             >
-              {viewMode === 'receipts' ? 'レシートディレクトリ' : viewMode === 'invoices' ? '請求書ディレクトリ' : '収納明細ディレクトリ'}
+              {viewMode === 'receipts' ? 'レシートディレクトリ' : viewMode === 'invoices' ? '請求書ディレクトリ' : viewMode === 'cl_payments' ? 'CL決済ディレクトリ' : '収納明細ディレクトリ'}
             </Button>
           )}
           <Box sx={{ flexGrow: 1 }} />
-          {!isMobile && viewMode === 'receipts' && (
+          {!isMobile && viewMode === 'receipts' && user?.role !== 'superadmin' && (
             <Typography
               variant="body2"
               sx={{
@@ -181,6 +203,7 @@ const MainTable = () => {
       </AppBar>
       {viewMode === 'receipts' && <TransactionTable hideAppBar />}
       {viewMode === 'invoices' && <InvoiceTable hideAppBar />}
+      {viewMode === 'cl_payments' && <ClPaymentTable hideAppBar />}
       {viewMode === 'payment_details' && <PaymentDetailsTable hideAppBar />}
     </Box>
   );

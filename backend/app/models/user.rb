@@ -4,6 +4,7 @@ class User < ApplicationRecord
   has_many :transactions, dependent: :destroy
   has_many :invoices, dependent: :destroy
   has_many :payment_details, dependent: :destroy
+  has_many :cl_payments, dependent: :destroy
 
   validates :user_id, presence: true, uniqueness: true
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }

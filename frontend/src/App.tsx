@@ -8,6 +8,7 @@ import MainTable from './pages/MainTable';
 import ReceiptDirectory from './pages/ReceiptDirectory';
 import InvoiceDirectory from './pages/InvoiceDirectory';
 import PaymentDirectory from './pages/PaymentDirectory';
+import ClPaymentDirectory from './pages/ClPaymentDirectory';
 import PrivateRoute from './components/PrivateRoute';
 
 const theme = createTheme({
@@ -90,6 +91,22 @@ function App() {
               element={
                 <PrivateRoute>
                   <PaymentDirectory />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/cl-payments"
+              element={
+                <PrivateRoute>
+                  <MainTable />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/cl-payment-directory"
+              element={
+                <PrivateRoute>
+                  <ClPaymentDirectory />
                 </PrivateRoute>
               }
             />
