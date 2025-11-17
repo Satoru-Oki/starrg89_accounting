@@ -186,6 +186,12 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
   const handleCapture = async () => {
     if (!videoRef.current || !canvasRef.current) return;
 
+    // 撮影ボタンを押した瞬間に検出ループを停止して枠を固定
+    if (detectionFrameRef.current) {
+      cancelAnimationFrame(detectionFrameRef.current);
+      detectionFrameRef.current = null;
+    }
+
     setLoading(true);
 
     try {
