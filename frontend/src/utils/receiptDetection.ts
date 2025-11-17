@@ -89,7 +89,7 @@ export const detectReceiptCorners = (
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
     // CLAHE（明るさ均一化）で影の影響を軽減（白い紙を強調）
-    const clahe = new cv.CLAHE(2.5, new cv.Size(8, 8));
+    const clahe = new cv.CLAHE(3.5, new cv.Size(8, 8));
     enhanced = new cv.Mat();
     clahe.apply(gray, enhanced);
 
@@ -99,7 +99,7 @@ export const detectReceiptCorners = (
 
     // Cannyエッジ検出（閾値を調整して白い紙を検出しやすく）
     edges = new cv.Mat();
-    cv.Canny(blurred, edges, 40, 120);
+    cv.Canny(blurred, edges, 30, 120);
 
     // モルフォロジー処理で外側の輪郭を強調
     const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
@@ -128,9 +128,9 @@ export const detectReceiptCorners = (
       const contour = contours.get(i);
       const area = cv.contourArea(contour);
 
-      // 画像の20%以上、95%以下の面積がある輪郭のみ対象
+      // 画像の15%以上、95%以下の面積がある輪郭のみ対象
       // （内部の小さな四角形を除外しつつ、縦画面での横長ドキュメントも検出可能に）
-      const minArea = imageArea * 0.20;
+      const minArea = imageArea * 0.15;
       const maxArea = imageArea * 0.95;
 
       if (area < minArea || area > maxArea) {
@@ -138,10 +138,10 @@ export const detectReceiptCorners = (
         continue;
       }
 
-      // 輪郭を多角形近似
+      // 輪郭を多角形近似（少し緩めに設定して検出率を向上）
       const approx = new cv.Mat();
       const perimeter = cv.arcLength(contour, true);
-      cv.approxPolyDP(contour, approx, 0.025 * perimeter, true);
+      cv.approxPolyDP(contour, approx, 0.03 * perimeter, true);
 
       // 4つの角がある場合のみ処理
       if (approx.rows === 4) {
