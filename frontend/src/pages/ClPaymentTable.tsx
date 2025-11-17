@@ -142,15 +142,29 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
   // カメラキャプチャイベントのリスナー
   useEffect(() => {
     const handleCameraCapture = (event: any) => {
-      const { file, mode } = event.detail;
+      const { file, mode, ocrData } = event.detail;
       if (mode === 'cl_payments') {
-        // 新しい行を追加してファイルを設定
+        // 新しい行を追加してファイルとOCRデータを設定
         const newId = `new-${Date.now()}`;
+
+        // OCRデータから日付を取得
+        let parsedDate = null;
+        if (ocrData?.date) {
+          try {
+            parsedDate = new Date(ocrData.date);
+            if (isNaN(parsedDate.getTime())) {
+              parsedDate = null;
+            }
+          } catch (e) {
+            parsedDate = null;
+          }
+        }
+
         const newRow: any = {
           id: newId,
-          payment_date: null,
-          payment_amount: null,
-          vendor: '',
+          payment_date: parsedDate, // OCRで読み取った日付
+          payment_amount: ocrData?.amount || null, // OCRで読み取った金額
+          vendor: ocrData?.payee || '', // OCRで読み取った注文先
           description: '',
           isNew: true,
           user_id: user?.id,

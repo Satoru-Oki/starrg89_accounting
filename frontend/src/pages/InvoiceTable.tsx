@@ -167,15 +167,29 @@ const InvoiceTable = ({ hideAppBar = false }: InvoiceTableProps = {}) => {
   // カメラキャプチャイベントのリスナー
   useEffect(() => {
     const handleCameraCapture = (event: any) => {
-      const { file, mode } = event.detail;
+      const { file, mode, ocrData } = event.detail;
       if (mode === 'invoices') {
-        // 新しい行を追加してファイルを設定
+        // 新しい行を追加してファイルとOCRデータを設定
         const newId = `new-${Date.now()}`;
+
+        // OCRデータから日付を取得
+        let parsedDate = null;
+        if (ocrData?.date) {
+          try {
+            parsedDate = new Date(ocrData.date);
+            if (isNaN(parsedDate.getTime())) {
+              parsedDate = null;
+            }
+          } catch (e) {
+            parsedDate = null;
+          }
+        }
+
         const newRow: any = {
           id: newId,
-          invoice_date: null,
-          invoice_amount: null,
-          invoice_from: '',
+          invoice_date: parsedDate, // OCRで読み取った日付
+          invoice_amount: ocrData?.amount || null, // OCRで読み取った金額
+          invoice_from: ocrData?.payee || '', // OCRで読み取った請求元
           description: '',
           invoice_status: '未添付',
           isNew: true,

@@ -9,6 +9,8 @@ import {
   IconButton,
   useTheme,
   useMediaQuery,
+  CircularProgress,
+  Backdrop,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import FolderIcon from '@mui/icons-material/Folder';
@@ -19,6 +21,7 @@ import InvoiceTable from './InvoiceTable';
 import PaymentDetailsTable from './PaymentDetailsTable';
 import ClPaymentTable from './ClPaymentTable';
 import { CameraCapture } from '../components/CameraCapture';
+import api from '../services/api';
 
 type ViewMode = 'receipts' | 'invoices' | 'cl_payments' | 'payment_details';
 
@@ -30,6 +33,7 @@ const MainTable = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [viewMode, setViewMode] = useState<ViewMode>('receipts');
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [ocrProcessing, setOcrProcessing] = useState(false);
 
   // 特定のユーザーのみトグルを表示
   const canToggle = user?.role === 'superadmin' ||
@@ -96,12 +100,51 @@ const MainTable = () => {
     }
   };
 
-  // カメラで撮影した画像を現在のモードのテーブルに渡す
-  const handleCameraCapture = (file: File) => {
+  // カメラで撮影した画像をOCR処理してからテーブルに渡す
+  const handleCameraCapture = async (file: File) => {
     setCameraOpen(false);
-    // 各テーブルに直接ファイルを渡す処理はテーブル側で実装
-    // ここでは単にカメラを閉じるのみ（テーブル側でイベントをリッスン）
-    window.dispatchEvent(new CustomEvent('cameraCapture', { detail: { file, mode: viewMode } }));
+    setOcrProcessing(true);
+
+    try {
+      // OCR処理を実行
+      let ocrData: any = {};
+
+      try {
+        const formData = new FormData();
+        formData.append('receipt', file);
+
+        const response = await api.post('/transactions/extract_receipt_data', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        ocrData = {
+          date: response.data.date,
+          amount: response.data.amount,
+          payee: response.data.payee,
+          raw_text: response.data.raw_text,
+        };
+
+        console.log('OCR処理成功:', ocrData);
+      } catch (ocrError: any) {
+        console.warn('OCR処理に失敗しましたが、画像は保存できます:', ocrError);
+        ocrData = {};
+      }
+
+      // 各テーブルにファイルとOCRデータを渡す
+      window.dispatchEvent(new CustomEvent('cameraCapture', {
+        detail: {
+          file,
+          mode: viewMode,
+          ocrData
+        }
+      }));
+    } catch (error) {
+      console.error('カメラキャプチャ処理エラー:', error);
+    } finally {
+      setOcrProcessing(false);
+    }
   };
 
   // モード表示名
@@ -137,8 +180,42 @@ const MainTable = () => {
           </Typography>
           {canToggle && (
             <>
-              {user?.role === 'superadmin' ? (
-                // スーパー管理者: 個別のボタン
+              {isMobile ? (
+                // モバイル: トグルボタン + カメラボタン
+                <>
+                  <Button
+                    variant="contained"
+                    onClick={handleToggleMode}
+                    sx={{
+                      mr: 1,
+                      bgcolor: getModeColor(),
+                      color: 'white',
+                      fontWeight: 'bold',
+                      minWidth: '100px',
+                      '&:hover': {
+                        bgcolor: getModeColor(),
+                        opacity: 0.9,
+                      },
+                    }}
+                  >
+                    {getModeName()}
+                  </Button>
+                  <IconButton
+                    color="inherit"
+                    onClick={() => setCameraOpen(true)}
+                    sx={{
+                      mr: 2,
+                      bgcolor: 'rgba(255, 255, 255, 0.2)',
+                      '&:hover': {
+                        bgcolor: 'rgba(255, 255, 255, 0.3)',
+                      },
+                    }}
+                  >
+                    <CameraAltIcon />
+                  </IconButton>
+                </>
+              ) : (
+                // PC: 個別のボタン
                 <>
                   <Button
                     variant="contained"
@@ -172,7 +249,7 @@ const MainTable = () => {
                     variant="contained"
                     onClick={() => handleViewChange('cl_payments')}
                     sx={{
-                      mr: 1,
+                      mr: canViewPaymentDetails ? 1 : 2,
                       bgcolor: viewMode === 'cl_payments' ? '#ff9800' : '#e0e0e0',
                       color: viewMode === 'cl_payments' ? 'white' : '#000',
                       backgroundImage: viewMode === 'cl_payments' ? 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.1) 10px, rgba(255,255,255,.1) 20px)' : 'none',
@@ -183,36 +260,6 @@ const MainTable = () => {
                   >
                     CL決済
                   </Button>
-                </>
-              ) : (
-                // admin/一般ユーザー: トグルボタン + カメラボタン
-                <>
-                  <Button
-                    variant="contained"
-                    onClick={handleToggleMode}
-                    sx={{
-                      mr: 1,
-                      bgcolor: getModeColor(),
-                      color: viewMode === 'invoices' ? '#000' : 'white',
-                      backgroundImage: viewMode === 'cl_payments' ? 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.1) 10px, rgba(255,255,255,.1) 20px)' : 'none',
-                      minWidth: '100px',
-                    }}
-                  >
-                    {getModeName()}
-                  </Button>
-                  <IconButton
-                    color="inherit"
-                    onClick={() => setCameraOpen(true)}
-                    sx={{
-                      mr: 2,
-                      bgcolor: 'rgba(255, 255, 255, 0.2)',
-                      '&:hover': {
-                        bgcolor: 'rgba(255, 255, 255, 0.3)',
-                      },
-                    }}
-                  >
-                    <CameraAltIcon />
-                  </IconButton>
                 </>
               )}
             </>
@@ -279,14 +326,27 @@ const MainTable = () => {
       {viewMode === 'cl_payments' && <ClPaymentTable hideAppBar />}
       {viewMode === 'payment_details' && <PaymentDetailsTable hideAppBar />}
 
-      {/* カメラダイアログ（スーパー管理者以外） */}
-      {user?.role !== 'superadmin' && (
+      {/* カメラダイアログ（モバイルのみ） */}
+      {isMobile && (
         <CameraCapture
           open={cameraOpen}
           onClose={() => setCameraOpen(false)}
           onCapture={handleCameraCapture}
         />
       )}
+
+      {/* OCR処理中のローディング */}
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+        open={ocrProcessing}
+      >
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress color="inherit" />
+          <Typography sx={{ mt: 2 }}>
+            OCR処理中...
+          </Typography>
+        </Box>
+      </Backdrop>
     </Box>
   );
 };

@@ -182,16 +182,30 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
   // カメラキャプチャイベントのリスナー
   useEffect(() => {
     const handleCameraCapture = (event: any) => {
-      const { file, mode } = event.detail;
+      const { file, mode, ocrData } = event.detail;
       if (mode === 'receipts') {
-        // 新しい行を追加してファイルを設定
+        // 新しい行を追加してファイルとOCRデータを設定
         const newId = `new-${Date.now()}`;
+
+        // OCRデータから日付を取得（YYYY-MM-DD形式の場合はDateオブジェクトに変換）
+        let parsedDate = null;
+        if (ocrData?.date) {
+          try {
+            parsedDate = new Date(ocrData.date);
+            if (isNaN(parsedDate.getTime())) {
+              parsedDate = null;
+            }
+          } catch (e) {
+            parsedDate = null;
+          }
+        }
+
         const newRow: any = {
           id: newId,
-          date: null,
+          date: parsedDate, // OCRで読み取った日付
           deposit_from_star: null,
-          payment: null,
-          payee: '',
+          payment: ocrData?.amount || null, // OCRで読み取った金額
+          payee: ocrData?.payee || '', // OCRで読み取った支払先
           category: '',
           description: '',
           receipt_status: '未添付',
