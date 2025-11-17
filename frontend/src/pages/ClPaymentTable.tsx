@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -50,6 +50,7 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
   const [error, setError] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<string>('all');
+  const scrollToNewRow = useRef<boolean>(false);
 
   useEffect(() => {
     fetchClPayments();
@@ -178,15 +179,18 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
             const savedRow = await handleSaveRow(newRow);
             const updatedRows = [...allRows, savedRow];
             setAllRows(updatedRows);
+            scrollToNewRow.current = true;
           } catch (error) {
             console.error('自動保存エラー:', error);
             // エラーでも行は追加する
             const updatedRows = [...allRows, newRow];
             setAllRows(updatedRows);
+            scrollToNewRow.current = true;
           }
         } else {
           const updatedRows = [...allRows, newRow];
           setAllRows(updatedRows);
+          scrollToNewRow.current = true;
         }
       }
     };
@@ -196,6 +200,26 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
       window.removeEventListener('cameraCapture', handleCameraCapture);
     };
   }, [allRows, user]);
+
+  // 新しい行が追加されたらスクロール
+  useEffect(() => {
+    if (scrollToNewRow.current && apiRef.current && filteredRows.length > 0) {
+      setTimeout(() => {
+        // ページサイズを取得
+        const pageSize = apiRef.current.state.pagination.paginationModel.pageSize;
+        // 最後のページ番号を計算（0始まり）
+        const lastPage = Math.floor((filteredRows.length - 1) / pageSize);
+
+        // 最後のページに移動
+        apiRef.current.setPage(lastPage);
+
+        // 最後の行までスクロール
+        apiRef.current.scrollToIndexes({ rowIndex: filteredRows.length - 1 });
+
+        scrollToNewRow.current = false;
+      }, 100);
+    }
+  }, [filteredRows, apiRef]);
 
   const handleAddRow = () => {
     const newId = `new-${Date.now()}`;
@@ -212,7 +236,11 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
     };
 
     // 最下段に追加
-    setAllRows([...allRows, newRow]);
+    const updatedRows = [...allRows, newRow];
+    setAllRows(updatedRows);
+
+    // スクロールフラグを設定（useEffectでスクロールが実行される）
+    scrollToNewRow.current = true;
   };
 
   const handleSaveRow = async (newRow: any) => {
