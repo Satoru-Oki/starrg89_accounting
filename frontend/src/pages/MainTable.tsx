@@ -369,6 +369,7 @@ const MainTable = () => {
       {/* カメラダイアログ（モバイルのみ） */}
       {isMobile && (
         <CameraCapture
+          key={cameraOpen ? Date.now() : 'closed'}
           open={cameraOpen}
           onClose={() => setCameraOpen(false)}
           onCapture={handleCameraCapture}

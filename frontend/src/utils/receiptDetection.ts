@@ -138,10 +138,10 @@ export const detectReceiptCorners = (
         continue;
       }
 
-      // 輪郭を多角形近似（少し緩めに設定して検出率を向上）
+      // 輪郭を多角形近似（厳密に設定して矩形を優先）
       const approx = new cv.Mat();
       const perimeter = cv.arcLength(contour, true);
-      cv.approxPolyDP(contour, approx, 0.03 * perimeter, true);
+      cv.approxPolyDP(contour, approx, 0.02 * perimeter, true);
 
       // 4つの角がある場合のみ処理
       if (approx.rows === 4) {
@@ -152,6 +152,51 @@ export const detectReceiptCorners = (
             x: approx.data32S[j * 2],
             y: approx.data32S[j * 2 + 1],
           });
+        }
+
+        // 四角形の品質チェック：角度が直角に近いかを確認
+        const angles = [];
+        for (let j = 0; j < 4; j++) {
+          const p1 = corners[j];
+          const p2 = corners[(j + 1) % 4];
+          const p3 = corners[(j + 2) % 4];
+
+          // ベクトルを計算
+          const v1x = p1.x - p2.x;
+          const v1y = p1.y - p2.y;
+          const v2x = p3.x - p2.x;
+          const v2y = p3.y - p2.y;
+
+          // 内積とベクトルの長さから角度を計算
+          const dot = v1x * v2x + v1y * v2y;
+          const len1 = Math.sqrt(v1x * v1x + v1y * v1y);
+          const len2 = Math.sqrt(v2x * v2x + v2y * v2y);
+          const angle = Math.acos(dot / (len1 * len2)) * (180 / Math.PI);
+          angles.push(angle);
+        }
+
+        // すべての角が60度～120度の範囲にあるかチェック（直角±30度）
+        const isRectangular = angles.every(angle => angle >= 60 && angle <= 120);
+        if (!isRectangular) {
+          approx.delete();
+          contour.delete();
+          continue;
+        }
+
+        // 辺の長さの比率をチェック（対辺がほぼ同じ長さか）
+        const side1 = Math.sqrt(Math.pow(corners[1].x - corners[0].x, 2) + Math.pow(corners[1].y - corners[0].y, 2));
+        const side2 = Math.sqrt(Math.pow(corners[2].x - corners[1].x, 2) + Math.pow(corners[2].y - corners[1].y, 2));
+        const side3 = Math.sqrt(Math.pow(corners[3].x - corners[2].x, 2) + Math.pow(corners[3].y - corners[2].y, 2));
+        const side4 = Math.sqrt(Math.pow(corners[0].x - corners[3].x, 2) + Math.pow(corners[0].y - corners[3].y, 2));
+
+        // 対辺の比率が0.7～1.3の範囲にあるかチェック
+        const ratio1 = side1 / side3;
+        const ratio2 = side2 / side4;
+        const hasParallelSides = (ratio1 >= 0.7 && ratio1 <= 1.3) && (ratio2 >= 0.7 && ratio2 <= 1.3);
+        if (!hasParallelSides) {
+          approx.delete();
+          contour.delete();
+          continue;
         }
 
         // スコアリング：面積を最重視（大きな外側の四角形を優先）
