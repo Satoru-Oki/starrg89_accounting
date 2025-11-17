@@ -12,11 +12,13 @@ import {
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import FolderIcon from '@mui/icons-material/Folder';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import { useAuth } from '../contexts/AuthContext';
 import TransactionTable from './TransactionTable';
 import InvoiceTable from './InvoiceTable';
 import PaymentDetailsTable from './PaymentDetailsTable';
 import ClPaymentTable from './ClPaymentTable';
+import { CameraCapture } from '../components/CameraCapture';
 
 type ViewMode = 'receipts' | 'invoices' | 'cl_payments' | 'payment_details';
 
@@ -27,6 +29,7 @@ const MainTable = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [viewMode, setViewMode] = useState<ViewMode>('receipts');
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   // 特定のユーザーのみトグルを表示
   const canToggle = user?.role === 'superadmin' ||
@@ -82,6 +85,41 @@ const MainTable = () => {
     }
   };
 
+  // トグルボタン: 領収書 → 請求書 → CL決済 → 領収書...
+  const handleToggleMode = () => {
+    if (viewMode === 'receipts') {
+      handleViewChange('invoices');
+    } else if (viewMode === 'invoices') {
+      handleViewChange('cl_payments');
+    } else {
+      handleViewChange('receipts');
+    }
+  };
+
+  // カメラで撮影した画像を現在のモードのテーブルに渡す
+  const handleCameraCapture = (file: File) => {
+    setCameraOpen(false);
+    // 各テーブルに直接ファイルを渡す処理はテーブル側で実装
+    // ここでは単にカメラを閉じるのみ（テーブル側でイベントをリッスン）
+    window.dispatchEvent(new CustomEvent('cameraCapture', { detail: { file, mode: viewMode } }));
+  };
+
+  // モード表示名
+  const getModeName = () => {
+    if (viewMode === 'receipts') return '領収書';
+    if (viewMode === 'invoices') return '請求書';
+    if (viewMode === 'cl_payments') return 'CL決済';
+    return '収納明細';
+  };
+
+  // モード色
+  const getModeColor = () => {
+    if (viewMode === 'receipts') return '#4caf50';
+    if (viewMode === 'invoices') return '#ffd54f';
+    if (viewMode === 'cl_payments') return '#ff9800';
+    return '#9c27b0';
+  };
+
   return (
     <Box>
       <AppBar position="static">
@@ -99,49 +137,84 @@ const MainTable = () => {
           </Typography>
           {canToggle && (
             <>
-              <Button
-                variant="contained"
-                onClick={() => handleViewChange('receipts')}
-                sx={{
-                  mr: 1,
-                  bgcolor: viewMode === 'receipts' ? '#4caf50' : '#e0e0e0',
-                  color: viewMode === 'receipts' ? 'white' : '#000',
-                  '&:hover': {
-                    bgcolor: viewMode === 'receipts' ? '#45a049' : '#d0d0d0',
-                  },
-                }}
-              >
-                領収書
-              </Button>
-              <Button
-                variant="contained"
-                onClick={() => handleViewChange('invoices')}
-                sx={{
-                  mr: 1,
-                  bgcolor: viewMode === 'invoices' ? '#ffd54f' : '#e0e0e0',
-                  color: viewMode === 'invoices' ? '#000' : '#000',
-                  '&:hover': {
-                    bgcolor: viewMode === 'invoices' ? '#ffc107' : '#d0d0d0',
-                  },
-                }}
-              >
-                請求書
-              </Button>
-              <Button
-                variant="contained"
-                onClick={() => handleViewChange('cl_payments')}
-                sx={{
-                  mr: canViewPaymentDetails ? 1 : 2,
-                  bgcolor: viewMode === 'cl_payments' ? '#ff9800' : '#e0e0e0',
-                  color: viewMode === 'cl_payments' ? 'white' : '#000',
-                  backgroundImage: viewMode === 'cl_payments' ? 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.1) 10px, rgba(255,255,255,.1) 20px)' : 'none',
-                  '&:hover': {
-                    bgcolor: viewMode === 'cl_payments' ? '#f57c00' : '#d0d0d0',
-                  },
-                }}
-              >
-                CL決済
-              </Button>
+              {user?.role === 'superadmin' ? (
+                // スーパー管理者: 個別のボタン
+                <>
+                  <Button
+                    variant="contained"
+                    onClick={() => handleViewChange('receipts')}
+                    sx={{
+                      mr: 1,
+                      bgcolor: viewMode === 'receipts' ? '#4caf50' : '#e0e0e0',
+                      color: viewMode === 'receipts' ? 'white' : '#000',
+                      '&:hover': {
+                        bgcolor: viewMode === 'receipts' ? '#45a049' : '#d0d0d0',
+                      },
+                    }}
+                  >
+                    領収書
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={() => handleViewChange('invoices')}
+                    sx={{
+                      mr: 1,
+                      bgcolor: viewMode === 'invoices' ? '#ffd54f' : '#e0e0e0',
+                      color: viewMode === 'invoices' ? '#000' : '#000',
+                      '&:hover': {
+                        bgcolor: viewMode === 'invoices' ? '#ffc107' : '#d0d0d0',
+                      },
+                    }}
+                  >
+                    請求書
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={() => handleViewChange('cl_payments')}
+                    sx={{
+                      mr: 1,
+                      bgcolor: viewMode === 'cl_payments' ? '#ff9800' : '#e0e0e0',
+                      color: viewMode === 'cl_payments' ? 'white' : '#000',
+                      backgroundImage: viewMode === 'cl_payments' ? 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.1) 10px, rgba(255,255,255,.1) 20px)' : 'none',
+                      '&:hover': {
+                        bgcolor: viewMode === 'cl_payments' ? '#f57c00' : '#d0d0d0',
+                      },
+                    }}
+                  >
+                    CL決済
+                  </Button>
+                </>
+              ) : (
+                // admin/一般ユーザー: トグルボタン + カメラボタン
+                <>
+                  <Button
+                    variant="contained"
+                    onClick={handleToggleMode}
+                    sx={{
+                      mr: 1,
+                      bgcolor: getModeColor(),
+                      color: viewMode === 'invoices' ? '#000' : 'white',
+                      backgroundImage: viewMode === 'cl_payments' ? 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.1) 10px, rgba(255,255,255,.1) 20px)' : 'none',
+                      minWidth: '100px',
+                    }}
+                  >
+                    {getModeName()}
+                  </Button>
+                  <IconButton
+                    color="inherit"
+                    onClick={() => setCameraOpen(true)}
+                    sx={{
+                      mr: 2,
+                      bgcolor: 'rgba(255, 255, 255, 0.2)',
+                      '&:hover': {
+                        bgcolor: 'rgba(255, 255, 255, 0.3)',
+                      },
+                    }}
+                  >
+                    <CameraAltIcon />
+                  </IconButton>
+                </>
+              )}
             </>
           )}
           {canViewPaymentDetails && (
@@ -205,6 +278,15 @@ const MainTable = () => {
       {viewMode === 'invoices' && <InvoiceTable hideAppBar />}
       {viewMode === 'cl_payments' && <ClPaymentTable hideAppBar />}
       {viewMode === 'payment_details' && <PaymentDetailsTable hideAppBar />}
+
+      {/* カメラダイアログ（スーパー管理者以外） */}
+      {user?.role !== 'superadmin' && (
+        <CameraCapture
+          open={cameraOpen}
+          onClose={() => setCameraOpen(false)}
+          onCapture={handleCameraCapture}
+        />
+      )}
     </Box>
   );
 };

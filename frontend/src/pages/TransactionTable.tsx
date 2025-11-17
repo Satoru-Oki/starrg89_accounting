@@ -179,6 +179,41 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
     });
   }, [allRows, selectedMonth, selectedUser, user?.role]);
 
+  // カメラキャプチャイベントのリスナー
+  useEffect(() => {
+    const handleCameraCapture = (event: any) => {
+      const { file, mode } = event.detail;
+      if (mode === 'receipts') {
+        // 新しい行を追加してファイルを設定
+        const newId = `new-${Date.now()}`;
+        const newRow: any = {
+          id: newId,
+          date: null,
+          deposit_from_star: null,
+          payment: null,
+          payee: '',
+          category: '',
+          description: '',
+          receipt_status: '未添付',
+          balance: 0,
+          isNew: true,
+          user_id: user?.id,
+          user_name: user?.name || '',
+          receiptFile: file, // カメラで撮影したファイルを設定
+        };
+
+        const updatedRows = [...allRows, newRow];
+        setAllRows(updatedRows);
+        scrollToNewRow.current = true;
+      }
+    };
+
+    window.addEventListener('cameraCapture', handleCameraCapture);
+    return () => {
+      window.removeEventListener('cameraCapture', handleCameraCapture);
+    };
+  }, [allRows, user]);
+
   // 新しい行が追加されたらスクロール
   useEffect(() => {
     if (scrollToNewRow.current && apiRef.current && filteredRows.length > 0) {

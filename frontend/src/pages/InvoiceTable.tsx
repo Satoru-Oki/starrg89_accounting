@@ -164,6 +164,37 @@ const InvoiceTable = ({ hideAppBar = false }: InvoiceTableProps = {}) => {
     });
   }, [allRows, selectedMonth, selectedUser, user?.role]);
 
+  // カメラキャプチャイベントのリスナー
+  useEffect(() => {
+    const handleCameraCapture = (event: any) => {
+      const { file, mode } = event.detail;
+      if (mode === 'invoices') {
+        // 新しい行を追加してファイルを設定
+        const newId = `new-${Date.now()}`;
+        const newRow: any = {
+          id: newId,
+          invoice_date: null,
+          invoice_amount: null,
+          invoice_from: '',
+          description: '',
+          invoice_status: '未添付',
+          isNew: true,
+          user_id: user?.id,
+          user_name: user?.name || '',
+          invoiceFile: file, // カメラで撮影したファイルを設定
+        };
+
+        const updatedRows = [...allRows, newRow];
+        setAllRows(updatedRows);
+      }
+    };
+
+    window.addEventListener('cameraCapture', handleCameraCapture);
+    return () => {
+      window.removeEventListener('cameraCapture', handleCameraCapture);
+    };
+  }, [allRows, user]);
+
   const handleAddRow = () => {
     const newId = `new-${Date.now()}`;
     const today = new Date();

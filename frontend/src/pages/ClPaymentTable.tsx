@@ -139,6 +139,36 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
     });
   }, [allRows, selectedMonth, selectedUser]);
 
+  // カメラキャプチャイベントのリスナー
+  useEffect(() => {
+    const handleCameraCapture = (event: any) => {
+      const { file, mode } = event.detail;
+      if (mode === 'cl_payments') {
+        // 新しい行を追加してファイルを設定
+        const newId = `new-${Date.now()}`;
+        const newRow: any = {
+          id: newId,
+          payment_date: null,
+          payment_amount: null,
+          vendor: '',
+          description: '',
+          isNew: true,
+          user_id: user?.id,
+          user_name: user?.name || '',
+          paymentFile: file, // カメラで撮影したファイルを設定
+        };
+
+        const updatedRows = [...allRows, newRow];
+        setAllRows(updatedRows);
+      }
+    };
+
+    window.addEventListener('cameraCapture', handleCameraCapture);
+    return () => {
+      window.removeEventListener('cameraCapture', handleCameraCapture);
+    };
+  }, [allRows, user]);
+
   const handleAddRow = () => {
     const newId = `new-${Date.now()}`;
 
