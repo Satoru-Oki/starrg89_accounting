@@ -16,6 +16,11 @@ class User < ApplicationRecord
     role == 'superadmin'
   end
 
+  # adminかどうかを判定
+  def admin?
+    role == 'admin'
+  end
+
   # adminまたはsuperadminかどうかを判定
   def admin_or_superadmin?
     role == 'admin' || role == 'superadmin'
