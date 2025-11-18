@@ -208,7 +208,7 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
           payee: ocrData?.payee || '', // OCRで読み取った支払先
           category: '',
           description: '',
-          receipt_status: '未添付',
+          receipt_status: '領収書配置済', // カメラで撮影したファイルがあるため
           balance: 0,
           isNew: true,
           user_id: user?.id,
