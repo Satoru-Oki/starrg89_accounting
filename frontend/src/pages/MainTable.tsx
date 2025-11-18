@@ -46,12 +46,8 @@ const MainTable = () => {
   const [editableOcrData, setEditableOcrData] = useState<any>({});
   const [previewImageUrl, setPreviewImageUrl] = useState<string>('');
 
-  // 特定のユーザーのみトグルを表示
-  const canToggle = user?.role === 'superadmin' ||
-                     user?.role === 'admin' ||
-                     user?.user_id === 'kanae' ||
-                     user?.user_id === 'risa' ||
-                     user?.user_id === 'oki';
+  // 全てのユーザーに領収書・請求書・CL決済のトグルを表示
+  const canToggle = true;
 
   // スーパー管理者のみ収納明細を表示
   const canViewPaymentDetails = user?.role === 'superadmin';

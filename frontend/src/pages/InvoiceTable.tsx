@@ -765,7 +765,6 @@ const InvoiceTable = ({ hideAppBar = false }: InvoiceTableProps = {}) => {
       width: isMobile ? 70 : 90,
       minWidth: 70,
       editable: false,
-      hide: user?.role !== 'admin' && user?.role !== 'superadmin',
     },
     {
       field: 'invoice_date',

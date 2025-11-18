@@ -384,15 +384,13 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
   const columns: GridColDef[] = useMemo(() => {
     const baseColumns: GridColDef[] = [];
 
-    // スーパー管理者または管理者の場合はユーザー名列を一番左に追加
-    if (user?.role === 'superadmin' || user?.role === 'admin') {
-      baseColumns.push({
-        field: 'user_name',
-        headerName: 'ユーザー',
-        width: 120,
-        editable: false,
-      });
-    }
+    // 全てのユーザーにユーザー名列を一番左に表示
+    baseColumns.push({
+      field: 'user_name',
+      headerName: 'ユーザー',
+      width: 120,
+      editable: false,
+    });
 
     baseColumns.push(
       {
