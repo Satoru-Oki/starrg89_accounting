@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
-import FlipCameraIosIcon from '@mui/icons-material/FlipCameraIos';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { waitForOpenCV, detectReceiptCorners, Corner } from '../utils/receiptDetection';
 
 interface CameraCaptureProps {
@@ -28,16 +28,16 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
   const streamRef = useRef<MediaStream | null>(null);
   const detectionFrameRef = useRef<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [corners, setCorners] = useState<Corner[] | null>(null);
   const [cvReady, setCvReady] = useState(false);
+  const [selectedCornerIndex, setSelectedCornerIndex] = useState<number | null>(null);
 
   // カメラストリームを開始
   const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: facingMode,
+          facingMode: 'environment',  // 背面カメラ固定
           width: { ideal: 3840, min: 1920 },  // 4K理想、最低Full HD
           height: { ideal: 2160, min: 1080 },
           aspectRatio: { ideal: 1.777777778 }, // 16:9
@@ -52,7 +52,7 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       console.error('カメラの起動に失敗しました:', error);
       alert('カメラの起動に失敗しました。カメラへのアクセスを許可してください。');
     }
-  }, [facingMode]);
+  }, []);
 
   // カメラストリームを停止
   const stopCamera = useCallback(() => {
@@ -74,11 +74,71 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
     onClose();
   }, [onClose, stopCamera]);
 
-  // カメラを切り替え
-  const toggleCamera = () => {
-    stopCamera();
-    setCorners(null); // 枠をリセット
-    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+  // 検出枠をリセット
+  const resetFrame = () => {
+    setCorners(null);
+    setSelectedCornerIndex(null);
+  };
+
+  // canvas座標系に変換（画面座標 → ビデオ解像度座標）
+  const getCanvasCoordinates = (clientX: number, clientY: number): { x: number; y: number } | null => {
+    if (!overlayCanvasRef.current || !videoRef.current) return null;
+
+    const canvas = overlayCanvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+
+    // canvas要素内の相対座標（0-1の範囲）
+    const relativeX = (clientX - rect.left) / rect.width;
+    const relativeY = (clientY - rect.top) / rect.height;
+
+    // ビデオ解像度での座標に変換
+    const x = relativeX * videoRef.current.videoWidth;
+    const y = relativeY * videoRef.current.videoHeight;
+
+    return { x, y };
+  };
+
+  // タッチ/マウス開始：角を選択
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!corners) return;
+
+    const coords = getCanvasCoordinates(e.clientX, e.clientY);
+    if (!coords) return;
+
+    // どの角に近いかチェック（タッチ半径: 60px）
+    const touchRadius = 60;
+    for (let i = 0; i < corners.length; i++) {
+      const corner = corners[i];
+      const distance = Math.sqrt(
+        Math.pow(coords.x - corner.x, 2) + Math.pow(coords.y - corner.y, 2)
+      );
+
+      if (distance <= touchRadius) {
+        setSelectedCornerIndex(i);
+        e.preventDefault();
+        return;
+      }
+    }
+  };
+
+  // タッチ/マウス移動：角の位置を更新
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (selectedCornerIndex === null || !corners) return;
+
+    const coords = getCanvasCoordinates(e.clientX, e.clientY);
+    if (!coords) return;
+
+    // 選択中の角の位置を更新
+    const newCorners = [...corners];
+    newCorners[selectedCornerIndex] = coords;
+    setCorners(newCorners);
+
+    e.preventDefault();
+  };
+
+  // タッチ/マウス終了：選択解除
+  const handlePointerUp = () => {
+    setSelectedCornerIndex(null);
   };
 
   // リアルタイム検出ループ
@@ -87,13 +147,19 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       return;
     }
 
-    // 四角形を検出
-    const detectedCorners = detectReceiptCorners(videoRef.current);
-    setCorners(detectedCorners);
+    // ドラッグ中は検出を実行しない（手動調整を優先）
+    if (selectedCornerIndex === null) {
+      // 四角形を検出
+      const detectedCorners = detectReceiptCorners(videoRef.current);
+      // 検出に成功した場合のみ枠を更新（失敗しても前回の枠を保持）
+      if (detectedCorners) {
+        setCorners(detectedCorners);
+      }
+    }
 
     // 次のフレームで再度検出
     detectionFrameRef.current = requestAnimationFrame(detectLoop);
-  }, [cvReady, open]);
+  }, [cvReady, open, selectedCornerIndex]);
 
   // OpenCV.jsの初期化
   useEffect(() => {
@@ -163,7 +229,7 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
     if (corners && corners.length === 4) {
       // 枠を描画
       ctx.strokeStyle = '#00ff00';
-      ctx.lineWidth = 12;  // 5px → 12pxにさらに太く
+      ctx.lineWidth = 12;
       ctx.beginPath();
       ctx.moveTo(corners[0].x, corners[0].y);
       ctx.lineTo(corners[1].x, corners[1].y);
@@ -173,14 +239,25 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       ctx.stroke();
 
       // 角に円を描画
-      ctx.fillStyle = '#00ff00';
-      corners.forEach((corner) => {
+      corners.forEach((corner, index) => {
+        // 選択中の角は大きく、それ以外は通常サイズ
+        const isSelected = index === selectedCornerIndex;
+        const radius = isSelected ? 30 : 18;
+
+        // 外側の円（白い縁）
+        ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(corner.x, corner.y, 18, 0, 2 * Math.PI);  // 10px → 18pxに拡大
+        ctx.arc(corner.x, corner.y, radius + 4, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // 内側の円（緑）
+        ctx.fillStyle = isSelected ? '#ffff00' : '#00ff00';  // 選択中は黄色
+        ctx.beginPath();
+        ctx.arc(corner.x, corner.y, radius, 0, 2 * Math.PI);
         ctx.fill();
       });
     }
-  }, [corners]);
+  }, [corners, selectedCornerIndex]);
 
   // 写真を撮影
   const handleCapture = async () => {
@@ -382,6 +459,10 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
           {/* 枠検出オーバーレイ */}
           <canvas
             ref={overlayCanvasRef}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
             style={{
               position: 'absolute',
               top: 0,
@@ -389,7 +470,8 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
               width: '100%',
               height: '100%',
               objectFit: 'contain',
-              pointerEvents: 'none',
+              touchAction: 'none',
+              cursor: selectedCornerIndex !== null ? 'grabbing' : (corners ? 'grab' : 'default'),
             }}
           />
 
@@ -433,18 +515,22 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
                 borderRadius: 1,
               }}
             >
-              <Typography variant="caption">レシートを検出しました</Typography>
+              <Typography variant="caption">
+                {selectedCornerIndex !== null
+                  ? '角をドラッグして調整中...'
+                  : 'レシートを検出しました（角をドラッグして調整可能）'}
+              </Typography>
             </Box>
           )}
         </Box>
       </DialogContent>
       <DialogActions sx={{ justifyContent: 'space-between', p: 2 }}>
         <Button
-          onClick={toggleCamera}
-          startIcon={<FlipCameraIosIcon />}
+          onClick={resetFrame}
+          startIcon={<RestartAltIcon />}
           variant="outlined"
         >
-          カメラ切替
+          枠リセット
         </Button>
         <Button
           onClick={handleCapture}
