@@ -311,17 +311,33 @@ const ClPaymentTable = ({ hideAppBar = false }: ClPaymentTableProps = {}) => {
         });
       }
 
-      const savedClPayment = response.data;
-      const updatedRow = {
-        ...savedClPayment,
-        payment_date: savedClPayment.payment_date ? new Date(savedClPayment.payment_date) : null,
+      // データを再取得して、更新された行を取得
+      console.log('Fetching updated CL payments...');
+      const updatedClPayments = await fetchClPayments();
+
+      // 保存/更新した行をIDで検索
+      const savedRowId = response.data.id;
+      const updatedRow = updatedClPayments.find((cp: any) => cp.id === savedRowId);
+
+      console.log('=== handleSaveRow SUCCESS ===');
+      console.log('Updated row from fetch:', JSON.stringify(updatedRow, null, 2));
+
+      if (!updatedRow) {
+        console.warn('Could not find updated row, returning response.data');
+        return {
+          ...response.data,
+          payment_date: response.data.payment_date ? new Date(response.data.payment_date) : null,
+          isNew: false,
+        };
+      }
+
+      // 再取得したデータを返す
+      const resultRow = {
+        ...updatedRow,
         isNew: false,
       };
-
-      const updatedRows = allRows.map((r: any) => (r.id === newRow.id ? updatedRow : r));
-      setAllRows(updatedRows);
-
-      return updatedRow;
+      console.log('Returning row:', JSON.stringify(resultRow, null, 2));
+      return resultRow;
     } catch (err: any) {
       console.error('Save error:', err);
       setError(err.response?.data?.error || err.response?.data?.errors?.join(', ') || '保存に失敗しました');
