@@ -31,6 +31,7 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
   const [corners, setCorners] = useState<Corner[] | null>(null);
   const [cvReady, setCvReady] = useState(false);
   const [selectedCornerIndex, setSelectedCornerIndex] = useState<number | null>(null);
+  const [detectionPaused, setDetectionPaused] = useState(false); // 検出を一時停止するフラグ
 
   // カメラストリームを開始
   const startCamera = useCallback(async () => {
@@ -70,6 +71,8 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
   // ダイアログを閉じる際に状態をリセット
   const handleClose = useCallback(() => {
     setCorners(null);
+    setDetectionPaused(false);
+    setSelectedCornerIndex(null);
     stopCamera();
     onClose();
   }, [onClose, stopCamera]);
@@ -78,6 +81,7 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
   const resetFrame = () => {
     setCorners(null);
     setSelectedCornerIndex(null);
+    setDetectionPaused(false); // 検出を再開
   };
 
   // canvas座標系に変換（画面座標 → ビデオ解像度座標）
@@ -105,8 +109,8 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
     const coords = getCanvasCoordinates(e.clientX, e.clientY);
     if (!coords) return;
 
-    // どの角に近いかチェック（タッチ半径: 60px）
-    const touchRadius = 60;
+    // どの角に近いかチェック（タッチ半径: 150px、ビデオ解像度座標）
+    const touchRadius = 150;
     for (let i = 0; i < corners.length; i++) {
       const corner = corners[i];
       const distance = Math.sqrt(
@@ -147,19 +151,20 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       return;
     }
 
-    // ドラッグ中は検出を実行しない（手動調整を優先）
-    if (selectedCornerIndex === null) {
+    // 検出が一時停止中、またはドラッグ中は検出を実行しない
+    if (!detectionPaused && selectedCornerIndex === null) {
       // 四角形を検出
       const detectedCorners = detectReceiptCorners(videoRef.current);
-      // 検出に成功した場合のみ枠を更新（失敗しても前回の枠を保持）
+      // 検出に成功した場合のみ枠を更新し、検出を一時停止
       if (detectedCorners) {
         setCorners(detectedCorners);
+        setDetectionPaused(true); // 検出成功したら自動検出を停止
       }
     }
 
-    // 次のフレームで再度検出
+    // 次のフレームで再度検出（一時停止中でも、リセット時に即座に再開できるようループは継続）
     detectionFrameRef.current = requestAnimationFrame(detectLoop);
-  }, [cvReady, open, selectedCornerIndex]);
+  }, [cvReady, open, selectedCornerIndex, detectionPaused]);
 
   // OpenCV.jsの初期化
   useEffect(() => {
@@ -174,14 +179,17 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
   useEffect(() => {
     if (open) {
       startCamera();
+      setDetectionPaused(false); // 開いた時は検出を開始
     } else {
       stopCamera();
       setCorners(null); // ダイアログが閉じたら枠をリセット
+      setDetectionPaused(false);
     }
 
     return () => {
       stopCamera();
       setCorners(null);
+      setDetectionPaused(false);
     };
   }, [open, startCamera, stopCamera]);
 
@@ -238,16 +246,16 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       ctx.closePath();
       ctx.stroke();
 
-      // 角に円を描画
+      // 角に円を描画（大きめのサイズで指での操作をしやすく）
       corners.forEach((corner, index) => {
         // 選択中の角は大きく、それ以外は通常サイズ
         const isSelected = index === selectedCornerIndex;
-        const radius = isSelected ? 30 : 18;
+        const radius = isSelected ? 70 : 50; // 通常50px、選択時70px
 
         // 外側の円（白い縁）
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(corner.x, corner.y, radius + 4, 0, 2 * Math.PI);
+        ctx.arc(corner.x, corner.y, radius + 6, 0, 2 * Math.PI);
         ctx.fill();
 
         // 内側の円（緑）
