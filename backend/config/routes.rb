@@ -37,6 +37,7 @@ Rails.application.routes.draw do
       # CL決済管理
       resources :cl_payments do
         collection do
+          post 'extract_cl_payment_data', to: 'cl_payments#extract_cl_payment_data'
           get 'cl_payment_directory', to: 'cl_payments#cl_payment_directory'
         end
       end

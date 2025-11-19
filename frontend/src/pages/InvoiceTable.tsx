@@ -190,9 +190,9 @@ const InvoiceTable = ({ hideAppBar = false }: InvoiceTableProps = {}) => {
           id: newId,
           invoice_date: parsedDate, // OCRで読み取った日付
           invoice_amount: ocrData?.amount || null, // OCRで読み取った金額
-          invoice_from: ocrData?.payee || '', // OCRで読み取った請求元
+          client: ocrData?.payee || '', // OCRで読み取った請求元
           description: '',
-          invoice_status: '未添付',
+          status: '未払い',
           isNew: true,
           user_id: user?.id,
           user_name: user?.name || '',
@@ -373,7 +373,7 @@ const InvoiceTable = ({ hideAppBar = false }: InvoiceTableProps = {}) => {
         const invoiceFile = newRow.invoiceFile instanceof Blob && !(newRow.invoiceFile instanceof File)
           ? new File([newRow.invoiceFile], newRow.invoiceFile.name || 'invoice.jpg', { type: newRow.invoiceFile.type })
           : newRow.invoiceFile;
-        formData.append('invoice', invoiceFile);
+        formData.append('invoice_file', invoiceFile);
 
         console.log('Sending with invoice file');
 

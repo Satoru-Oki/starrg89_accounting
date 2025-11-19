@@ -118,18 +118,34 @@ const MainTable = () => {
 
       try {
         const formData = new FormData();
-        formData.append('receipt', file);
 
-        const response = await api.post('/transactions/extract_receipt_data', formData, {
+        // viewModeに応じてエンドポイントとパラメータ名を変更
+        let endpoint = '';
+        let fieldName = '';
+
+        if (viewMode === 'receipts') {
+          endpoint = '/transactions/extract_receipt_data';
+          fieldName = 'receipt';
+        } else if (viewMode === 'invoices') {
+          endpoint = '/invoices/extract_invoice_data';
+          fieldName = 'invoice_file';
+        } else if (viewMode === 'cl_payments') {
+          endpoint = '/cl_payments/extract_cl_payment_data';
+          fieldName = 'payment_file';
+        }
+
+        formData.append(fieldName, file);
+
+        const response = await api.post(endpoint, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
 
         ocrData = {
-          date: response.data.date,
-          amount: response.data.amount,
-          payee: response.data.payee,
+          date: response.data.date || response.data.invoice_date,
+          amount: response.data.amount || response.data.invoice_amount,
+          payee: response.data.payee || response.data.client,
           raw_text: response.data.raw_text,
         };
 

@@ -26,8 +26,9 @@ module Api
       def create
         cl_payment = current_user.cl_payments.new(cl_payment_params)
 
+        # 支払いファイルが添付されている場合、OCR処理を実行
         if params[:payment_file].present?
-          process_payment_file(cl_payment)
+          process_payment_file_ocr(cl_payment)
         end
 
         if cl_payment.save
@@ -50,7 +51,7 @@ module Api
 
         # 新しいファイルがアップロードされた場合
         if params[:payment_file].present?
-          process_payment_file(cl_payment)
+          process_payment_file_ocr(cl_payment)
           cl_payment.save
           render json: cl_payment_json(cl_payment)
         else
@@ -67,6 +68,28 @@ module Api
         cl_payment = ClPayment.find(params[:id])
         cl_payment.destroy
         head :no_content
+      end
+
+      # CL決済ファイルからOCRでデータを抽出
+      def extract_cl_payment_data
+        unless params[:payment_file].present?
+          return render json: { error: 'ファイルが必要です' }, status: :unprocessable_entity
+        end
+
+        # OCR処理（アップロードされたファイルを直接使用）
+        ocr_service = ReceiptOcrService.new
+        result = ocr_service.extract_from_uploaded_file(params[:payment_file])
+
+        if result[:error]
+          render json: { error: result[:error] }, status: :unprocessable_entity
+        else
+          render json: {
+            date: result[:date],
+            amount: result[:amount],
+            payee: result[:payee],
+            raw_text: result[:raw_text]
+          }
+        end
       end
 
       # スーパー管理者がCL決済ディレクトリを一括閲覧
@@ -115,8 +138,8 @@ module Api
 
       private
 
-      # ファイルの処理
-      def process_payment_file(cl_payment)
+      # 支払いファイルのOCR処理を実行してフィールドに値を設定
+      def process_payment_file_ocr(cl_payment)
         uploaded_file = params[:payment_file]
         return unless uploaded_file
 
@@ -126,20 +149,99 @@ module Api
           raise StandardError, 'CL決済はPDFまたは画像ファイルのみアップロード可能です'
         end
 
-        # 日付が確定したので、日付ベースのキーでアップロード
+        content_type = uploaded_file.content_type
+        is_pdf = content_type == 'application/pdf'
+
+        # まず画像/PDFを一時的に添付してOCR処理
+        cl_payment.payment_file.attach(uploaded_file)
+
+        # OCR処理（失敗しても続行）
+        begin
+          ocr_service = ReceiptOcrService.new
+          result = ocr_service.extract_from_attachment(cl_payment.payment_file)
+
+          unless result[:error]
+            # OCRで読み取った値をフィールドに設定（既存の値がない場合のみ）
+            ocr_date = result[:date] ? Date.parse(result[:date]) : nil
+            cl_payment.payment_date ||= ocr_date if ocr_date
+            cl_payment.payment_amount ||= result[:amount] if result[:amount]
+            cl_payment.vendor ||= result[:payee] if result[:payee]
+          end
+        rescue StandardError => e
+          Rails.logger.error "OCR処理エラー（保存は続行）: #{e.message}"
+          Rails.logger.error e.backtrace.join("\n")
+          # OCRが失敗してもファイル保存処理は実行する
+        end
+
+        # 日付が確定したので、日付ベースのキーで再アップロード（OCRの成否に関わらず実行）
         if cl_payment.payment_date
-          date_path = generate_date_based_key(cl_payment.payment_date, uploaded_file.original_filename, cl_payment.user_id)
+          # 既存の添付を削除
+          cl_payment.payment_file.purge
 
-          # カスタムキーでアップロード
-          uploaded_file.tempfile.rewind
-          blob = ActiveStorage::Blob.create_and_upload!(
-            io: uploaded_file.tempfile,
-            filename: uploaded_file.original_filename,
-            content_type: uploaded_file.content_type,
-            key: date_path
-          )
+          if is_pdf
+            # PDFの場合はそのまま保存
+            date_path = generate_date_based_key(cl_payment.payment_date, uploaded_file.original_filename, cl_payment.user_id)
 
-          cl_payment.payment_file.attach(blob)
+            # カスタムキーでアップロード
+            uploaded_file.tempfile.rewind
+            blob = ActiveStorage::Blob.create_and_upload!(
+              io: uploaded_file.tempfile,
+              filename: uploaded_file.original_filename,
+              content_type: uploaded_file.content_type,
+              key: date_path
+            )
+
+            cl_payment.payment_file.attach(blob)
+          else
+            # 画像の場合は圧縮して保存
+            compressed_file = compress_image(uploaded_file)
+            date_path = generate_date_based_key(cl_payment.payment_date, 'payment.jpg', cl_payment.user_id)
+
+            # カスタムキーで再アップロード
+            blob = ActiveStorage::Blob.create_and_upload!(
+              io: compressed_file,
+              filename: 'payment.jpg',
+              content_type: 'image/jpeg',
+              key: date_path
+            )
+
+            cl_payment.payment_file.attach(blob)
+            compressed_file.close
+            compressed_file.unlink
+          end
+        end
+      end
+
+      # 画像をJPEG形式に圧縮
+      def compress_image(uploaded_file)
+        require 'image_processing/vips'
+
+        # 一時ファイルを作成
+        tempfile = Tempfile.new(['compressed_payment', '.jpg'])
+
+        begin
+          # Vipsで画像を処理
+          processed = ImageProcessing::Vips
+            .source(uploaded_file.tempfile.path)
+            .resize_to_limit(2400, 2400)
+            .convert('jpg')
+            .saver(quality: 85)
+            .call
+
+          # 処理済み画像を一時ファイルにコピー
+          FileUtils.cp(processed.path, tempfile.path)
+          processed.close
+          processed.unlink
+
+          tempfile.rewind
+          tempfile
+        rescue StandardError => e
+          Rails.logger.error "画像圧縮エラー: #{e.message}"
+          Rails.logger.error e.backtrace.join("\n")
+          tempfile.close
+          tempfile.unlink
+          # エラー時は元のファイルを返す
+          uploaded_file.tempfile
         end
       end
 
