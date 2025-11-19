@@ -12,12 +12,13 @@
 
 ## 📖 プロジェクト概要
 
-Star R.G 89 経理清算システムは、企業の経理業務を効率化するために開発された、モダンなWebベースの経費・請求書管理システムです。直感的なスプレッドシート風UIと、AI-OCR機能による自動データ抽出により、経理処理の時間を大幅に削減します。
+この経理清算システムは、経理業務を効率化するために開発しました。
+直感的なスプレッドシート風UIと、AI-OCR機能による自動データ抽出により、これまでかかっていた経理処理の時間を削減することを意図しています。
 
 ### 🎯 解決する課題
 
 - 📝 **手作業での入力ミス**: OCR機能により領収書・請求書から自動でデータを抽出
-- 🔄 **データ管理の煩雑さ**: 領収書と請求書を統合的に管理
+- 🔄 **データ管理の煩雑さ**: 領収書と請求書及びクレジット決済の証跡保存を統合的に管理
 - 📊 **可視化の不足**: 直感的なインターフェースでデータを一覧表示
 - 🔐 **権限管理**: ロールベースのアクセス制御で安全なデータ管理
 
@@ -40,6 +41,12 @@ Star R.G 89 経理清算システムは、企業の経理業務を効率化す�
 - 請求書ディレクトリでの一覧表示
 - 領収書と統合されたUI
 
+### 💰 CL決済管理
+- CL決済の登録・編集・削除
+- OCRによるCLデータ自動抽出
+- CL決済ディレクトリでの一覧表示
+- 領収書と統合されたUI
+
 ### 🔐 ユーザー管理
 - ロールベースアクセス制御（superadmin/admin/user）
 - JWT認証によるセキュアなAPI通信
@@ -53,7 +60,6 @@ Star R.G 89 経理清算システムは、企業の経理業務を効率化す�
 ### 🎨 レスポンシブUI
 - Material-UI v5によるモダンなデザイン
 - モバイル対応（スマートフォン・タブレット）
-- ダークモード対応（予定）
 
 ---
 
@@ -275,7 +281,6 @@ docker compose -f docker-compose.prod.yml exec backend bundle exec rails db:migr
 **Satoru Oki**
 
 - GitHub: [@Satoru-Oki](https://github.com/Satoru-Oki)
-- Email: お問い合わせフォームより
 
 ---
 
@@ -285,22 +290,4 @@ docker compose -f docker-compose.prod.yml exec backend bundle exec rails db:migr
 
 ---
 
-## 🙏 謝辞
 
-このプロジェクトの開発にあたり、以下の技術・サービスを使用させていただきました：
-
-- [Ruby on Rails](https://rubyonrails.org/)
-- [React](https://react.dev/)
-- [Material-UI](https://mui.com/)
-- [Google Cloud Platform](https://cloud.google.com/)
-- [Docker](https://www.docker.com/)
-
----
-
-<div align="center">
-
-**⭐ このプロジェクトが役に立った場合は、スターをつけていただけると嬉しいです！**
-
-Made with ❤️ by Satoru Oki
-
-</div>
