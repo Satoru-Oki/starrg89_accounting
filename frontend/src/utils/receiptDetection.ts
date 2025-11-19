@@ -88,24 +88,38 @@ export const detectReceiptCorners = (
     gray = new cv.Mat();
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
-    // CLAHE（明るさ均一化）で影の影響を軽減（白い紙を強調）
-    const clahe = new cv.CLAHE(3.5, new cv.Size(8, 8));
+    // CLAHE（明るさ均一化）で影の影響を軽減（強度を上げて白い紙をより強調）
+    const clahe = new cv.CLAHE(5.0, new cv.Size(8, 8)); // 3.5 → 5.0に強化
     enhanced = new cv.Mat();
     clahe.apply(gray, enhanced);
 
+    // 適応的二値化で白い領域を強調（背景が複雑でも白い紙を検出しやすく）
+    const binary = new cv.Mat();
+    cv.adaptiveThreshold(
+      enhanced,
+      binary,
+      255,
+      cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+      cv.THRESH_BINARY,
+      15, // ブロックサイズ
+      5   // 定数C
+    );
+
     // ノイズ除去（ガウシアンブラー）
     blurred = new cv.Mat();
-    cv.GaussianBlur(enhanced, blurred, new cv.Size(5, 5), 0);
+    cv.GaussianBlur(binary, blurred, new cv.Size(5, 5), 0);
 
-    // Cannyエッジ検出（閾値を調整して白い紙を検出しやすく）
+    // Cannyエッジ検出（閾値を調整して白い紙のエッジを検出しやすく）
     edges = new cv.Mat();
-    cv.Canny(blurred, edges, 30, 120);
+    cv.Canny(blurred, edges, 40, 150); // 30-120 → 40-150に調整
 
-    // モルフォロジー処理で外側の輪郭を強調
-    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
+    // モルフォロジー処理で外側の輪郭を強調（カーネルサイズを大きく）
+    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(7, 7)); // 5x5 → 7x7
     cv.dilate(edges, edges, kernel);
-    cv.dilate(edges, edges, kernel); // 2回実行して内部の細かい線を消す
+    cv.dilate(edges, edges, kernel);
+    cv.dilate(edges, edges, kernel); // 3回実行して内部の細かい線をより強く消す
     kernel.delete();
+    binary.delete();
 
     // 輪郭検出
     contours = new cv.MatVector();
@@ -128,9 +142,10 @@ export const detectReceiptCorners = (
       const contour = contours.get(i);
       const area = cv.contourArea(contour);
 
-      // 画像の15%以上、90%以下の面積がある輪郭のみ対象
+      // 画像の10%以上、90%以下の面積がある輪郭のみ対象
       // （内部の小さな四角形を除外しつつ、大きすぎる範囲も除外）
-      const minArea = imageArea * 0.15;
+      // 背景が複雑な場合でも検出しやすくするため、最小値を15% → 10%に緩和
+      const minArea = imageArea * 0.10;
       const maxArea = imageArea * 0.90;
 
       if (area < minArea || area > maxArea) {
@@ -175,8 +190,9 @@ export const detectReceiptCorners = (
           angles.push(angle);
         }
 
-        // すべての角が60度～120度の範囲にあるかチェック（直角±30度）
-        const isRectangular = angles.every(angle => angle >= 60 && angle <= 120);
+        // すべての角が55度～125度の範囲にあるかチェック（直角±35度）
+        // 背景が複雑な場合でも検出しやすくするため、許容範囲を少し拡大
+        const isRectangular = angles.every(angle => angle >= 55 && angle <= 125);
         if (!isRectangular) {
           approx.delete();
           contour.delete();
