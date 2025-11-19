@@ -57,10 +57,10 @@ export const detectReceiptCorners = (
   let canvas: any = null;
 
   try {
-    // 高解像度での処理を軽くするため、検出時は最大1920pxに縮小
+    // 高解像度での処理を軽くするため、検出時は最大1280pxに縮小（高速化）
     const originalWidth = videoElement.videoWidth;
     const originalHeight = videoElement.videoHeight;
-    const maxDimension = 1920;
+    const maxDimension = 1280; // 1920 → 1280に削減（処理速度約2倍）
 
     let scale = 1;
     let processingWidth = originalWidth;
