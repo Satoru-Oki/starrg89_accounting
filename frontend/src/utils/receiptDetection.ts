@@ -133,10 +133,11 @@ export const detectReceiptCorners = (
       const contour = contours.get(i);
       const area = cv.contourArea(contour);
 
-      // 画像の12%以上、90%以下の面積がある輪郭のみ対象
+      // 画像の8%以上、90%以下の面積がある輪郭のみ対象
       // （内部の小さな四角形を除外しつつ、大きすぎる範囲も除外）
-      // より小さいレシートも検出できるよう、最小値を少し緩和
-      const minArea = imageArea * 0.12;
+      // 小さいレシートも検出できるよう、最小値を8%に設定
+      // 他の品質チェック（角度、対辺比率）があるため誤検出は抑えられる
+      const minArea = imageArea * 0.08;
       const maxArea = imageArea * 0.90;
 
       if (area < minArea || area > maxArea) {
