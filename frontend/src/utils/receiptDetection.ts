@@ -199,24 +199,6 @@ export const detectReceiptCorners = (
           continue;
         }
 
-        // 画面端チェック: 頂点が画面端に近すぎる場合は除外（モバイルでのドラッグ操作性向上）
-        const edgeMarginPercent = 0.08; // 画面の8%をマージンとする
-        const edgeMarginX = processingWidth * edgeMarginPercent;
-        const edgeMarginY = processingHeight * edgeMarginPercent;
-
-        const hasCornerNearEdge = corners.some(corner =>
-          corner.x < edgeMarginX ||
-          corner.x > processingWidth - edgeMarginX ||
-          corner.y < edgeMarginY ||
-          corner.y > processingHeight - edgeMarginY
-        );
-
-        if (hasCornerNearEdge) {
-          approx.delete();
-          contour.delete();
-          continue;
-        }
-
         // スコアリング：面積を最重視（大きな外側の四角形を優先）
         const areaScore = area / imageArea;
         const perimeterScore = perimeter / imagePerimeter;

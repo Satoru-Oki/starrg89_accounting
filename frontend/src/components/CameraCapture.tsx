@@ -109,19 +109,47 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
     const coords = getCanvasCoordinates(e.clientX, e.clientY);
     if (!coords) return;
 
-    // どの角に近いかチェック（タッチ半径: 150px、ビデオ解像度座標）
-    const touchRadius = 150;
+    if (!videoRef.current) return;
+
+    // ビデオ解像度を取得
+    const videoWidth = videoRef.current.videoWidth;
+    const videoHeight = videoRef.current.videoHeight;
+
+    // 基本タッチ半径: 250px（ビデオ解像度座標）に拡大
+    const baseTouchRadius = 250;
+
+    // 各角との距離を計算し、最も近い角を選択（画面端の頂点は優先的に選択）
+    let closestCornerIndex = -1;
+    let closestDistance = Infinity;
+
     for (let i = 0; i < corners.length; i++) {
       const corner = corners[i];
       const distance = Math.sqrt(
         Math.pow(coords.x - corner.x, 2) + Math.pow(coords.y - corner.y, 2)
       );
 
-      if (distance <= touchRadius) {
-        setSelectedCornerIndex(i);
-        e.preventDefault();
-        return;
+      // 画面端からの距離を計算
+      const edgeMargin = 400; // 端から400px以内を「端付近」とみなす
+      const isNearEdge =
+        corner.x < edgeMargin ||
+        corner.x > videoWidth - edgeMargin ||
+        corner.y < edgeMargin ||
+        corner.y > videoHeight - edgeMargin;
+
+      // 端付近の頂点はタッチ半径を2倍に拡大（より広い範囲でタッチ可能）
+      const effectiveTouchRadius = isNearEdge ? baseTouchRadius * 2 : baseTouchRadius;
+
+      // タッチ範囲内で最も近い角を選択
+      if (distance <= effectiveTouchRadius && distance < closestDistance) {
+        closestDistance = distance;
+        closestCornerIndex = i;
       }
+    }
+
+    // 最も近い角を選択
+    if (closestCornerIndex !== -1) {
+      setSelectedCornerIndex(closestCornerIndex);
+      e.preventDefault();
     }
   };
 
@@ -248,14 +276,14 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
 
       // 角に円を描画（大きめのサイズで指での操作をしやすく）
       corners.forEach((corner, index) => {
-        // 選択中の角は大きく、それ以外は通常サイズ
+        // 選択中の角は大きく、それ以外は通常サイズ（サイズを20%増）
         const isSelected = index === selectedCornerIndex;
-        const radius = isSelected ? 70 : 50; // 通常50px、選択時70px
+        const radius = isSelected ? 85 : 60; // 通常60px（旧50px）、選択時85px（旧70px）
 
-        // 外側の円（白い縁）
+        // 外側の円（白い縁）を太くして視認性向上
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(corner.x, corner.y, radius + 6, 0, 2 * Math.PI);
+        ctx.arc(corner.x, corner.y, radius + 8, 0, 2 * Math.PI);
         ctx.fill();
 
         // 内側の円（緑）
