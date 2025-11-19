@@ -338,6 +338,35 @@ const PaymentDetailsTable = ({ hideAppBar = false }: PaymentDetailsTableProps = 
       },
     },
     {
+      field: 'transfer_total',
+      headerName: '振込合計',
+      width: 130,
+      type: 'number',
+      align: 'right',
+      headerAlign: 'right',
+      valueGetter: (params) => {
+        // 表示されているfilteredRowsの中で最も新しい日付を見つける
+        const latestDate = filteredRows.reduce((latest: Date | null, row: any) => {
+          if (!row.deposit_date) return latest;
+          const date = row.deposit_date instanceof Date ? row.deposit_date : new Date(row.deposit_date);
+          if (!latest || date > latest) return date;
+          return latest;
+        }, null);
+
+        // 現在の行が最新日付の行かどうかチェック
+        if (!params.row.deposit_date || !latestDate) return null;
+        const currentDate = params.row.deposit_date instanceof Date ? params.row.deposit_date : new Date(params.row.deposit_date);
+        if (currentDate.getTime() !== latestDate.getTime()) return null;
+
+        // 振込金額の合計を計算
+        const total = filteredRows.reduce((sum: number, row: any) => {
+          return sum + (row.transfer_amount || 0);
+        }, 0);
+
+        return total;
+      },
+    },
+    {
       field: 'payment_file_url',
       headerName: 'PDF',
       width: 100,
