@@ -71,10 +71,13 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
   const categories = [
     '施設費用',
     '交際費',
+    '会議費',
     '事務用品',
     '交通費',
     '新体操用品',
     '大会参加費',
+    '講習会費',
+    '発表会',
     '保険',
     '衣装',
     '駐車場',
