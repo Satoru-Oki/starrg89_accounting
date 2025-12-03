@@ -31,6 +31,9 @@ Rails.application.configure do
   # Store uploaded files on Google Cloud Storage (see config/storage.yml for options).
   config.active_storage.service = :google
 
+  # 署名付きURLの有効期限を24時間に延長（デフォルトは5分）
+  config.active_storage.service_urls_expire_in = 24.hours
+
   # Don't care if the mailer can't send.
   config.action_mailer.raise_delivery_errors = false
 
