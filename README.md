@@ -7,7 +7,8 @@
 ## 📸 スクリーンショット
 
 ### ログイン画面
-シンプルで使いやすいログインインターフェース
+<img width="392" height="278" alt="image" src="https://github.com/user-attachments/assets/1b646d3d-4bee-4142-96e8-6c1a83cbede8" />
+
 
 ### 領収書管理画面
 スプレッドシート風のデータ入力と一覧表示
