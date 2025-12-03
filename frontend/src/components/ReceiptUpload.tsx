@@ -351,7 +351,7 @@ export const ReceiptUpload = ({
                     >
                       {({ zoomIn, zoomOut, resetTransform }) => (
                         <>
-                          <Box sx={{ display: 'flex', gap: 1, mb: 1, justifyContent: 'center' }}>
+                          <Box sx={{ display: 'flex', gap: 1, mb: 0.5, justifyContent: 'center' }}>
                             <IconButton onClick={() => zoomIn()} size="small" color="primary" title="拡大">
                               <ZoomInIcon fontSize="small" />
                             </IconButton>
@@ -365,7 +365,7 @@ export const ReceiptUpload = ({
                           <TransformComponent
                             wrapperStyle={{
                               width: '100%',
-                              height: '450px',
+                              height: '480px',
                               border: '1px solid #ddd',
                               borderRadius: '4px',
                             }}
@@ -485,7 +485,7 @@ export const ReceiptUpload = ({
                 >
                   {({ zoomIn, zoomOut, resetTransform }) => (
                     <>
-                      <Box sx={{ display: 'flex', gap: 1, mb: 2, justifyContent: 'center' }}>
+                      <Box sx={{ display: 'flex', gap: 1, mb: 1, justifyContent: 'center' }}>
                         <IconButton onClick={() => zoomIn()} size="small" color="primary" title="拡大">
                           <ZoomInIcon />
                         </IconButton>
@@ -499,7 +499,7 @@ export const ReceiptUpload = ({
                       <TransformComponent
                         wrapperStyle={{
                           width: '100%',
-                          height: '60vh',
+                          height: '65vh',
                           border: '1px solid #ddd',
                           borderRadius: '4px',
                         }}
@@ -515,8 +515,8 @@ export const ReceiptUpload = ({
                           }}
                         />
                       </TransformComponent>
-                      <Typography variant="caption" sx={{ display: 'block', mt: 1, textAlign: 'center', color: 'text.secondary' }}>
-                        Ctrl+マウスホイールで拡大縮小、ドラッグで移動、ダブルクリックでリセット
+                      <Typography variant="caption" sx={{ display: 'block', mt: 0.5, textAlign: 'center', color: 'text.secondary' }}>
+                        Ctrl+マウスホイールで拡大縮小、ダブルクリックでリセット
                       </Typography>
                     </>
                   )}
