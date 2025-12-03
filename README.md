@@ -186,7 +186,7 @@ end
 ### 3. リアルタイムデータ更新
 - DataGridのセル編集による即時更新
 - 画像アップロード時の自動保存
-- 楽観的UI更新によるレスポンシブな体験
+- UI更新によるレスポンシブな体験
 
 ### 4. セキュリティ対策
 - JWT認証によるステートレス認証
@@ -240,26 +240,6 @@ docker compose -f docker-compose.prod.yml exec backend bundle exec rails db:migr
 
 ### 5. アクセス
 - 本番環境: https://starrg89.xyz
-- ログイン情報: 管理者に問い合わせ
-
----
-
-## 📸 スクリーンショット
-
-### ログイン画面
-シンプルで使いやすいログインインターフェース
-
-### 領収書管理画面
-スプレッドシート風のデータ入力と一覧表示
-
-### 請求書管理画面
-請求書の登録と支払いステータス管理
-
-### OCR確認画面
-抽出されたデータを確認・修正可能
-
-### ディレクトリビュー
-日付別に整理された領収書・請求書の一覧
 
 ---
 
@@ -271,7 +251,6 @@ docker compose -f docker-compose.prod.yml exec backend bundle exec rails db:migr
 - [ ] **API拡張** - RESTful APIの公開
 - [ ] **モバイルアプリ** - React Nativeによるネイティブアプリ
 - [ ] **AI機能強化** - Gemini APIによる自動仕訳提案
-- [ ] **多言語対応** - 英語・中国語対応
 - [ ] **監査ログ** - すべての操作履歴の記録
 
 ---
@@ -281,12 +260,6 @@ docker compose -f docker-compose.prod.yml exec backend bundle exec rails db:migr
 **Satoru Oki**
 
 - GitHub: [@Satoru-Oki](https://github.com/Satoru-Oki)
-
----
-
-## 📝 ライセンス
-
-このプロジェクトは私的利用のために開発されました。
 
 ---
 
