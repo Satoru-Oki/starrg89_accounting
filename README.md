@@ -10,24 +10,21 @@
 <img width="392" height="278" alt="image" src="https://github.com/user-attachments/assets/1b646d3d-4bee-4142-96e8-6c1a83cbede8" />
 
 
-### 領収書管理画面
+### 領収書・請求書・CL決済管理画面
 <img width="1897" height="784" alt="image" src="https://github.com/user-attachments/assets/c331542d-848b-4924-887b-48530f93cf36" />
 
-
-### 請求書管理画面
-請求書の登録と支払いステータス管理
-
 ### OCR確認画面
-抽出されたデータを確認・修正可能
+<img width="578" height="411" alt="image" src="https://github.com/user-attachments/assets/11d27106-f981-4433-a1c3-8d6e07c3d893" />
+
 
 ### ディレクトリビュー
-日付別に整理された領収書・請求書の一覧
+<img width="1860" height="912" alt="image" src="https://github.com/user-attachments/assets/7eaef079-943b-4f1c-bd34-767e6028ac09" />
+
 
 ---
 
 </div>
 
----
 
 ## 📖 プロジェクト概要
 
