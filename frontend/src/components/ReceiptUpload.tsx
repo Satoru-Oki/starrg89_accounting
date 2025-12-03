@@ -19,7 +19,11 @@ import ImageIcon from '@mui/icons-material/Image';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
+import ZoomInIcon from '@mui/icons-material/ZoomIn';
+import ZoomOutIcon from '@mui/icons-material/ZoomOut';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import imageCompression from 'browser-image-compression';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import api from '../services/api';
 import { CameraCapture } from './CameraCapture';
 
@@ -336,20 +340,50 @@ export const ReceiptUpload = ({
                       }}
                     />
                   ) : (
-                    // 画像の場合
-                    <Box
-                      component="img"
-                      src={previewImageUrl}
-                      alt="レシートプレビュー"
-                      sx={{
-                        width: '100%',
-                        height: 'auto',
-                        maxHeight: '500px',
-                        objectFit: 'contain',
-                        border: '1px solid #ddd',
-                        borderRadius: 1,
-                      }}
-                    />
+                    // 画像の場合 - ズーム機能付き
+                    <TransformWrapper
+                      initialScale={1}
+                      minScale={0.5}
+                      maxScale={5}
+                      centerOnInit={true}
+                      wheel={{ step: 0.1, activationKeys: ['Control'] }}
+                      doubleClick={{ mode: 'reset' }}
+                    >
+                      {({ zoomIn, zoomOut, resetTransform }) => (
+                        <>
+                          <Box sx={{ display: 'flex', gap: 1, mb: 1, justifyContent: 'center' }}>
+                            <IconButton onClick={() => zoomIn()} size="small" color="primary" title="拡大">
+                              <ZoomInIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton onClick={() => zoomOut()} size="small" color="primary" title="縮小">
+                              <ZoomOutIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton onClick={() => resetTransform()} size="small" color="primary" title="リセット">
+                              <RestartAltIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                          <TransformComponent
+                            wrapperStyle={{
+                              width: '100%',
+                              height: '450px',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                            }}
+                          >
+                            <Box
+                              component="img"
+                              src={previewImageUrl}
+                              alt="レシートプレビュー"
+                              sx={{
+                                width: '100%',
+                                height: 'auto',
+                                display: 'block',
+                              }}
+                            />
+                          </TransformComponent>
+                        </>
+                      )}
+                    </TransformWrapper>
                   )}
                 </>
               )}
@@ -440,18 +474,53 @@ export const ReceiptUpload = ({
                   }}
                 />
               ) : (
-                // 画像の場合
-                <Box
-                  component="img"
-                  src={receiptUrl}
-                  alt="レシート画像"
-                  sx={{
-                    width: '100%',
-                    height: 'auto',
-                    maxHeight: '70vh',
-                    objectFit: 'contain',
-                  }}
-                />
+                // 画像の場合 - ズーム機能付き
+                <TransformWrapper
+                  initialScale={1}
+                  minScale={0.5}
+                  maxScale={5}
+                  centerOnInit={true}
+                  wheel={{ step: 0.1, activationKeys: ['Control'] }}
+                  doubleClick={{ mode: 'reset' }}
+                >
+                  {({ zoomIn, zoomOut, resetTransform }) => (
+                    <>
+                      <Box sx={{ display: 'flex', gap: 1, mb: 2, justifyContent: 'center' }}>
+                        <IconButton onClick={() => zoomIn()} size="small" color="primary" title="拡大">
+                          <ZoomInIcon />
+                        </IconButton>
+                        <IconButton onClick={() => zoomOut()} size="small" color="primary" title="縮小">
+                          <ZoomOutIcon />
+                        </IconButton>
+                        <IconButton onClick={() => resetTransform()} size="small" color="primary" title="リセット">
+                          <RestartAltIcon />
+                        </IconButton>
+                      </Box>
+                      <TransformComponent
+                        wrapperStyle={{
+                          width: '100%',
+                          height: '60vh',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src={receiptUrl}
+                          alt="レシート画像"
+                          sx={{
+                            width: '100%',
+                            height: 'auto',
+                            display: 'block',
+                          }}
+                        />
+                      </TransformComponent>
+                      <Typography variant="caption" sx={{ display: 'block', mt: 1, textAlign: 'center', color: 'text.secondary' }}>
+                        Ctrl+マウスホイールで拡大縮小、ドラッグで移動、ダブルクリックでリセット
+                      </Typography>
+                    </>
+                  )}
+                </TransformWrapper>
               )}
             </>
           )}
