@@ -131,7 +131,6 @@
 - **Docker & Docker Compose** - コンテナ化
 - **Nginx** - リバースプロキシ
 - **Let's Encrypt** - SSL/TLS証明書
-- **GitHub Actions** - CI/CD（予定）
 
 ---
 
@@ -176,7 +175,6 @@
    - JWT認証によるセキュアなAPI通信
    - ロールベースのアクセス制御
    - リアルタイムデータ更新
-
 ---
 
 ## 🚀 技術的ハイライト
@@ -228,7 +226,7 @@ cd starrg89_accounting
 ### 2. 環境変数の設定
 ```bash
 # .env.productionを作成
-cp .env.example .env.production
+cp .env .env.production
 
 # 以下の項目を設定
 # - DB_PASSWORD: データベースパスワード
@@ -267,7 +265,6 @@ docker compose -f docker-compose.prod.yml exec backend bundle exec rails db:migr
 - [ ] **API拡張** - RESTful APIの公開
 - [ ] **モバイルアプリ** - React Nativeによるネイティブアプリ
 - [ ] **AI機能強化** - Gemini APIによる自動仕訳提案
-- [ ] **監査ログ** - すべての操作履歴の記録
 
 ---
 
