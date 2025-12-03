@@ -11,7 +11,8 @@
 
 
 ### 領収書管理画面
-スプレッドシート風のデータ入力と一覧表示
+<img width="1897" height="784" alt="image" src="https://github.com/user-attachments/assets/c331542d-848b-4924-887b-48530f93cf36" />
+
 
 ### 請求書管理画面
 請求書の登録と支払いステータス管理
