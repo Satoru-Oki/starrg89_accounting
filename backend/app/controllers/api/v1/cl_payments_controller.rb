@@ -5,14 +5,14 @@ module Api
         # ユーザーの役割に応じてデータを絞り込む
         if current_user.superadmin?
           # スーパー管理者は全データを閲覧可能
-          cl_payments = ClPayment.includes(:user).order(payment_date: :asc, id: :asc)
+          cl_payments = ClPayment.includes(:user, payment_file_attachment: :blob).order(payment_date: :asc, id: :asc)
         elsif current_user.admin?
           # 管理者はスーパー管理者とokiのデータは閲覧できない
           excluded_user_ids = User.where(role: 'superadmin').or(User.where(user_id: 'oki')).pluck(:id)
-          cl_payments = ClPayment.includes(:user).where.not(user_id: excluded_user_ids).order(payment_date: :asc, id: :asc)
+          cl_payments = ClPayment.includes(:user, payment_file_attachment: :blob).where.not(user_id: excluded_user_ids).order(payment_date: :asc, id: :asc)
         else
           # 一般ユーザーは自分のデータのみ閲覧可能
-          cl_payments = current_user.cl_payments.order(payment_date: :asc, id: :asc)
+          cl_payments = current_user.cl_payments.includes(payment_file_attachment: :blob).order(payment_date: :asc, id: :asc)
         end
 
         render json: cl_payments.map { |cp| cl_payment_json(cp) }

@@ -4,17 +4,17 @@ module Api
       def index
         transactions = if current_user.superadmin?
           # superadminは全てのトランザクションを閲覧可能
-          Transaction.includes(:user).order(date: :asc, id: :asc)
+          Transaction.includes(:user, receipt_attachment: :blob).order(date: :asc, id: :asc)
         elsif current_user.role == 'admin'
           # adminはスーパー管理者とokiユーザー以外のトランザクションを閲覧可能
-          Transaction.includes(:user)
+          Transaction.includes(:user, receipt_attachment: :blob)
                     .joins(:user)
                     .where.not(users: { role: 'superadmin' })
                     .where.not(users: { user_id: 'oki' })
                     .order(date: :asc, id: :asc)
         else
           # 一般ユーザーは自分のトランザクションのみ閲覧可能
-          current_user.transactions.order(date: :asc, id: :asc)
+          current_user.transactions.includes(receipt_attachment: :blob).order(date: :asc, id: :asc)
         end
 
         render json: transactions.map { |t| transaction_json(t) }
