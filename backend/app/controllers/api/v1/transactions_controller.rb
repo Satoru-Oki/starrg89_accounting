@@ -2,22 +2,28 @@ module Api
   module V1
     class TransactionsController < BaseController
       def index
-        transactions = if current_user.superadmin?
+        base_scope = if current_user.superadmin?
           # superadminは全てのトランザクションを閲覧可能
-          Transaction.includes(:user, receipt_attachment: :blob).order(date: :asc, id: :asc)
+          Transaction.all
         elsif current_user.role == 'admin'
           # adminはスーパー管理者とokiユーザー以外のトランザクションを閲覧可能
-          Transaction.includes(:user, receipt_attachment: :blob)
-                    .joins(:user)
+          Transaction.joins(:user)
                     .where.not(users: { role: 'superadmin' })
                     .where.not(users: { user_id: 'oki' })
-                    .order(date: :asc, id: :asc)
         else
           # 一般ユーザーは自分のトランザクションのみ閲覧可能
-          current_user.transactions.includes(receipt_attachment: :blob).order(date: :asc, id: :asc)
+          current_user.transactions
         end
 
-        render json: transactions.map { |t| transaction_json(t, include_receipt_url: false) }
+        # 軽量なETag判定: MAX(updated_at)とCOUNTのみでキャッシュ有効性を確認
+        # データ未変更時はフルクエリ・JSON構築をスキップして304を返す
+        last_modified = base_scope.maximum(:updated_at)
+        record_count = base_scope.count
+
+        if stale?(etag: [last_modified, record_count, current_user.id])
+          transactions = base_scope.includes(:user, receipt_attachment: :blob).order(date: :asc, id: :asc)
+          render json: transactions.map { |t| transaction_json(t, include_receipt_url: false) }
+        end
       end
       
       def show
