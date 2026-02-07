@@ -29,9 +29,11 @@ import { CameraCapture } from './CameraCapture';
 
 interface ReceiptUploadProps {
   receiptUrl?: string | null;
+  hasReceipt?: boolean;
   isPdf?: boolean;
   onReceiptUpload: (file: File, ocrData: OcrData) => void;
   onReceiptDelete?: () => void;
+  fetchReceiptUrl?: () => Promise<string | null>;
   disabled?: boolean;
 }
 
@@ -44,14 +46,18 @@ interface OcrData {
 
 export const ReceiptUpload = ({
   receiptUrl,
+  hasReceipt = false,
   isPdf = false,
   onReceiptUpload,
   onReceiptDelete,
+  fetchReceiptUrl,
   disabled = false
 }: ReceiptUploadProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [fetchedReceiptUrl, setFetchedReceiptUrl] = useState<string | null>(null);
+  const [fetchingUrl, setFetchingUrl] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingOcrData, setPendingOcrData] = useState<OcrData | null>(null);
@@ -213,7 +219,19 @@ export const ReceiptUpload = ({
     }
   };
 
-  const handlePreviewOpen = () => {
+  const handlePreviewOpen = async () => {
+    const currentUrl = receiptUrl || fetchedReceiptUrl;
+    if (!currentUrl && fetchReceiptUrl) {
+      setFetchingUrl(true);
+      try {
+        const url = await fetchReceiptUrl();
+        setFetchedReceiptUrl(url);
+      } catch (e) {
+        console.error('レシートURL取得エラー:', e);
+      } finally {
+        setFetchingUrl(false);
+      }
+    }
     setPreviewOpen(true);
   };
 
@@ -239,11 +257,11 @@ export const ReceiptUpload = ({
         onClick={handleUploadMenuOpen}
         disabled={disabled || loading}
         size="small"
-        title={receiptUrl ? 'レシート画像を変更' : 'レシート画像をアップロード'}
+        title={(receiptUrl || hasReceipt) ? 'レシート画像を変更' : 'レシート画像をアップロード'}
       >
         {loading ? (
           <CircularProgress size={24} />
-        ) : receiptUrl ? (
+        ) : (receiptUrl || hasReceipt) ? (
           <ImageIcon />
         ) : (
           <CameraAltIcon />
@@ -267,20 +285,20 @@ export const ReceiptUpload = ({
       </Menu>
 
       {/* 閲覧ボタン（画像がある場合） */}
-      {receiptUrl && (
+      {(receiptUrl || hasReceipt) && (
         <IconButton
           color="info"
           onClick={handlePreviewOpen}
-          disabled={disabled}
+          disabled={disabled || fetchingUrl}
           size="small"
           title="レシート画像を表示"
         >
-          <VisibilityIcon />
+          {fetchingUrl ? <CircularProgress size={20} /> : <VisibilityIcon />}
         </IconButton>
       )}
 
       {/* 削除ボタン（画像がある場合） */}
-      {receiptUrl && onReceiptDelete && (
+      {(receiptUrl || hasReceipt) && onReceiptDelete && (
         <IconButton
           color="error"
           onClick={handleDeleteClick}
@@ -460,13 +478,13 @@ export const ReceiptUpload = ({
       >
         <DialogTitle>レシート</DialogTitle>
         <DialogContent>
-          {receiptUrl && (
+          {(receiptUrl || fetchedReceiptUrl) && (
             <>
               {isPdf ? (
                 // PDFの場合
                 <Box
                   component="iframe"
-                  src={receiptUrl}
+                  src={receiptUrl || fetchedReceiptUrl || ''}
                   sx={{
                     width: '100%',
                     height: '70vh',
@@ -506,7 +524,7 @@ export const ReceiptUpload = ({
                       >
                         <Box
                           component="img"
-                          src={receiptUrl}
+                          src={receiptUrl || fetchedReceiptUrl || ''}
                           alt="レシート画像"
                           sx={{
                             width: '100%',

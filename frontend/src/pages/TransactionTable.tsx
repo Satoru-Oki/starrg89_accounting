@@ -916,9 +916,14 @@ const TransactionTable = ({ hideAppBar = false }: TransactionTableProps = {}) =>
       renderCell: (params) => (
         <ReceiptUpload
           receiptUrl={params.row.receipt_url}
+          hasReceipt={params.row.has_receipt}
           isPdf={params.row.is_pdf}
           onReceiptUpload={handleReceiptUpload(params.id)}
           onReceiptDelete={handleReceiptDelete(params.id)}
+          fetchReceiptUrl={async () => {
+            const res = await api.get(`/transactions/${params.row.id}`);
+            return res.data.receipt_url;
+          }}
           disabled={false}
         />
       ),

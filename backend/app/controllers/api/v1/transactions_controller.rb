@@ -17,7 +17,7 @@ module Api
           current_user.transactions.includes(receipt_attachment: :blob).order(date: :asc, id: :asc)
         end
 
-        render json: transactions.map { |t| transaction_json(t) }
+        render json: transactions.map { |t| transaction_json(t, include_receipt_url: false) }
       end
       
       def show
@@ -459,9 +459,8 @@ module Api
         permitted
       end
       
-      def transaction_json(transaction)
-        receipt_url = transaction.receipt.attached? ? transaction.receipt.url : nil
-        is_pdf = transaction.receipt.attached? && transaction.receipt.content_type == 'application/pdf'
+      def transaction_json(transaction, include_receipt_url: true)
+        has_receipt = transaction.receipt.attached?
 
         {
           id: transaction.id,
@@ -476,8 +475,9 @@ module Api
           user_id: transaction.user_id,
           user_name: transaction.user.name,
           user_login_id: transaction.user.user_id,
-          receipt_url: receipt_url,
-          is_pdf: is_pdf,
+          receipt_url: include_receipt_url && has_receipt ? transaction.receipt.url : nil,
+          has_receipt: has_receipt,
+          is_pdf: has_receipt && transaction.receipt.content_type == 'application/pdf',
           updated_at: transaction.updated_at&.iso8601,
           created_at: transaction.created_at&.iso8601
         }
