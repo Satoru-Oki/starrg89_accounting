@@ -5,7 +5,7 @@ module Api
 
       def index
         # superadminのみが全ての収納明細を閲覧可能
-        payment_details = PaymentDetail.includes(:user).order(deposit_date: :asc, id: :asc)
+        payment_details = PaymentDetail.includes(:user, payment_file_attachment: :blob).order(deposit_date: :asc, id: :asc)
         render json: payment_details.map { |pd| payment_detail_json(pd) }
       end
 
