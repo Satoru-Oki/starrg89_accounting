@@ -2,7 +2,7 @@ require 'net/http'
 require 'json'
 
 class ReceiptOcrService
-  GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+  GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
 
   # 画像ファイルからOCRでテキストを抽出（Gemini Vision使用）
   def extract_receipt_data(image_path)
