@@ -249,6 +249,32 @@ vim nginx/conf.d/app.conf
 docker compose -f docker-compose.prod.yml restart nginx
 ```
 
+### 4.3 証明書の自動更新と反映の仕組み
+
+Let's Encryptの証明書は90日で失効するため、自動更新と反映を以下の二重構造で実現しています。
+
+**certbotコンテナ**: 12時間おきに `certbot renew` を実行し、有効期限が30日以内に迫った証明書を自動更新します（`docker-compose.prod.yml` の certbot サービス）。
+
+**nginxコンテナ**: certbotが新しい証明書ファイルを生成しても、nginxは起動時に読み込んだ証明書をメモリに保持し続けるため、reloadしない限り新しい証明書を配信しません。この問題を解決するため、nginxコンテナの`command:`にバックグラウンドで6時間おきに `nginx -s reload` を実行するループを組み込んでいます：
+
+```yaml
+nginx:
+  image: nginx:alpine
+  # ...
+  command: ["/bin/sh", "-c", "while :; do sleep 21600; nginx -s reload; done & exec nginx -g 'daemon off;'"]
+```
+
+これにより、証明書更新（最大12時間遅延）+ nginxへの反映（最大6時間遅延）で、**最悪でも18時間以内に新証明書が配信に反映**されます。
+
+**動作確認**: nginxが現在クライアントに配信している証明書の期限は以下で確認できます。
+
+```bash
+echo | openssl s_client -servername your-domain.com -connect your-domain.com:443 2>/dev/null \
+  | openssl x509 -noout -dates
+```
+
+`notAfter` がディスク上の証明書（`certbot certificates` で確認できる期限）と一致していれば正常です。両者がズレている場合は「トラブルシューティング」の該当項目を参照してください。
+
 ## 5. ファイアウォールの設定
 
 ```bash
@@ -356,6 +382,28 @@ docker compose -f docker-compose.prod.yml exec nginx nginx -t
 # Nginxログの確認
 docker compose -f docker-compose.prod.yml logs nginx
 ```
+
+### SSL証明書の期限切れエラー（certbotは更新済みなのに発生する場合）
+
+ブラウザで「証明書の有効期限切れ」と表示されるが、サーバー上の証明書ファイル自体は更新済みというケース。原因はnginxが古い証明書をメモリに保持し続けているため。
+
+```bash
+# 1. 実際にnginxが配信している証明書を確認
+echo | openssl s_client -servername your-domain.com -connect your-domain.com:443 2>/dev/null \
+  | openssl x509 -noout -dates
+
+# 2. ディスク上の証明書ファイルの期限を確認
+docker compose -f docker-compose.prod.yml run --rm --entrypoint certbot certbot certificates
+
+# 3. 両者の notAfter が異なる場合、nginxをreloadして反映
+docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
+
+# 4. 再確認（1と同じコマンドを再実行）
+```
+
+セクション4.3の自動reload機構（6時間おきのループ）が有効であれば、放置しても最悪18時間以内に自動的に反映されます。
+
+**事例**: 2026-05-18にこの問題が発生。証明書は2026-04-16にcertbotが自動更新済み（期限2026-07-15）だったが、nginxへの伝達機構が無かったため2026-05-16失効の古い証明書を配信し続けていた。対策として自動reloadループを導入。
 
 ### コンテナが起動しない
 
